@@ -1,0 +1,49 @@
+<?php
+
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\LoginController;
+use App\Http\Controllers\Oidc\ProviderController;
+use App\Http\Controllers\PasswordResetController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', fn () => redirect('/admin'));
+
+// Alur browser OIDC (butuh session)
+Route::get('/oauth/authorize', [ProviderController::class, 'authorize']);
+Route::match(['get', 'post'], '/oauth/logout', [ProviderController::class, 'endSession']);
+
+Route::get('/login', [LoginController::class, 'show'])->name('login');
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:20,1');
+Route::get('/login/mfa', [LoginController::class, 'showMfa'])->name('login.mfa');
+Route::post('/login/mfa', [LoginController::class, 'verifyMfa'])->middleware('throttle:20,1');
+Route::post('/logout', [LoginController::class, 'logout']);
+
+Route::get('/forgot-password', [PasswordResetController::class, 'showForgot'])->name('password.request');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:10,1')->name('password.email');
+Route::get('/reset-password/{token}', [PasswordResetController::class, 'showReset'])->name('password.reset');
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:10,1')->name('password.update');
+
+Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard']);
+    Route::get('/apps', [AdminController::class, 'apps']);
+    Route::post('/apps', [AdminController::class, 'appStore']);
+    Route::get('/apps/{app}', [AdminController::class, 'appShow']);
+    Route::post('/apps/{app}', [AdminController::class, 'appUpdate']);
+    Route::post('/apps/{app}/rotate-secret', [AdminController::class, 'appRotateSecret']);
+    Route::post('/apps/{app}/rotate-webhook-secret', [AdminController::class, 'appRotateWebhookSecret']);
+    Route::post('/apps/{app}/roles', [AdminController::class, 'roleStore']);
+    Route::post('/apps/{app}/api-keys', [AdminController::class, 'apiKeyStore']);
+    Route::post('/api-keys/{key}/revoke', [AdminController::class, 'apiKeyRevoke']);
+    Route::get('/users', [AdminController::class, 'users']);
+    Route::post('/users', [AdminController::class, 'userStore']);
+    Route::get('/users/{user}', [AdminController::class, 'userShow']);
+    Route::post('/users/{user}', [AdminController::class, 'userUpdate']);
+    Route::post('/users/{user}/reset-mfa', [AdminController::class, 'userResetMfa']);
+    Route::post('/orgs', [AdminController::class, 'orgStore']);
+    Route::get('/security', [AdminController::class, 'security']);
+    Route::post('/security/mfa/prepare', [AdminController::class, 'mfaPrepare']);
+    Route::post('/security/mfa/confirm', [AdminController::class, 'mfaConfirm']);
+    Route::post('/security/mfa/disable', [AdminController::class, 'mfaDisable']);
+    Route::get('/audit', [AdminController::class, 'audit']);
+    Route::post('/keys/rotate', [AdminController::class, 'rotateKey']);
+});

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "meta": {
+    "project": "IAM-SSO-CORE",
+    "persona": "VyrnForge Dark Tech & Cyber Security",
+    "palette": "Electric Cyan & Trust Blue",
+    "themeMode": "Seamless Dual Theme (Default Dark + Light Switch)",
+    "updatedAt": "2026-10-25"
+  },
+  "primitive": {
+    "color": {
+      "slate": {
+        "50":  { "$value": "#F8FAFC", "$type": "color" },
+        "100": { "$value": "#F1F5F9", "$type": "color" },
+        "200": { "$value": "#E2E8F0", "$type": "color" },
+        "300": { "$value": "#CBD5E1", "$type": "color" },
+        "400": { "$value": "#94A3B8", "$type": "color" },
+        "500": { "$value": "#64748B", "$type": "color" },
+        "600": { "$value": "#475569", "$type": "color" },
+        "700": { "$value": "#334155", "$type": "color" },
+        "800": { "$value": "#1E293B", "$type": "color" },
+        "850": { "$value": "#131C31", "$type": "color" },
+        "900": { "$value": "#0D1322", "$type": "color" },
+        "950": { "$value": "#070B14", "$type": "color" }
+      },
+      "cyan": {
+        "300": { "$value": "#67E8F9", "$type": "color" },
+        "400": { "$value": "#22D3EE", "$type": "color" },
+        "500": { "$value": "#06B6D4", "$type": "color" },
+        "600": { "$value": "#0891B2", "$type": "color" },
+        "700": { "$value": "#0E7490", "$type": "color" },
+        "950": { "$value": "#03151B", "$type": "color" }
+      },
+      "blue": {
+        "500": { "$value": "#3B82F6", "$type": "color" },
+        "600": { "$value": "#2563EB", "$type": "color" }
+      },
+      "emerald": {
+        "200": { "$value": "#A7F3D0", "$type": "color" },
+        "400": { "$value": "#34D399", "$type": "color" },
+        "500": { "$value": "#10B981", "$type": "color" },
+        "700": { "$value": "#047857", "$type": "color" }
+      },
+      "amber": {
+        "200": { "$value": "#FDE68A", "$type": "color" },
+        "400": { "$value": "#FBBF24", "$type": "color" },
+        "600": { "$value": "#D97706", "$type": "color" },
+        "700": { "$value": "#B45309", "$type": "color" }
+      },
+      "rose": {
+        "200": { "$value": "#FECACA", "$type": "color" },
+        "400": { "$value": "#F87171", "$type": "color" },
+        "600": { "$value": "#DC2626", "$type": "color" },
+        "950": { "$value": "#1F0606", "$type": "color" }
+      },
+      "white": { "$value": "#FFFFFF", "$type": "color" }
+    },
+    "space": {
+      "1": { "$value": "0.25rem", "$type": "dimension" },
+      "2": { "$value": "0.5rem", "$type": "dimension" },
+      "3": { "$value": "0.75rem", "$type": "dimension" },
+      "4": { "$value": "1rem", "$type": "dimension" },
+      "5": { "$value": "1.25rem", "$type": "dimension" },
+      "6": { "$value": "1.5rem", "$type": "dimension" },
+      "8": { "$value": "2rem", "$type": "dimension" },
+      "10": { "$value": "2.5rem", "$type": "dimension" }
+    },
+    "typography": {
+      "fontSans": { "$value": "'IBM Plex Sans', system-ui, -apple-system, sans-serif", "$type": "fontFamily" },
+      "fontMono": { "$value": "'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace", "$type": "fontFamily" },
+      "sizeXs": { "$value": "0.75rem", "$type": "dimension" },
+      "sizeSm": { "$value": "0.84375rem", "$type": "dimension" },
+      "sizeBase": { "$value": "0.90625rem", "$type": "dimension" },
+      "sizeLg": { "$value": "1.05rem", "$type": "dimension" },
+      "sizeXl": { "$value": "1.375rem", "$type": "dimension" },
+      "size2xl": { "$value": "1.625rem", "$type": "dimension" }
+    },
+    "radius": {
+      "sm": { "$value": "8px", "$type": "dimension" },
+      "md": { "$value": "12px", "$type": "dimension" },
+      "lg": { "$value": "16px", "$type": "dimension" },
+      "full": { "$value": "9999px", "$type": "dimension" }
+    }
+  },
+  "semantic": {
+    "dark": {
+      "background": "{primitive.color.slate.950}",
+      "surface": "{primitive.color.slate.850}",
+      "surfaceElevated": "{primitive.color.slate.900}",
+      "foreground": "{primitive.color.slate.50}",
+      "mutedForeground": "{primitive.color.slate.400}",
+      "primary": "{primitive.color.cyan.500}",
+      "primaryHover": "{primitive.color.cyan.400}",
+      "onPrimary": "{primitive.color.cyan.950}",
+      "border": "{primitive.color.slate.800}",
+      "success": "{primitive.color.emerald.400}",
+      "warning": "{primitive.color.amber.400}",
+      "danger": "{primitive.color.rose.400}"
+    },
+    "light": {
+      "background": "{primitive.color.slate.50}",
+      "surface": "{primitive.color.white}",
+      "surfaceElevated": "{primitive.color.slate.100}",
+      "foreground": "{primitive.color.slate.900}",
+      "mutedForeground": "{primitive.color.slate.600}",
+      "primary": "{primitive.color.cyan.600}",
+      "primaryHover": "{primitive.color.cyan.700}",
+      "onPrimary": "{primitive.color.white}",
+      "border": "{primitive.color.slate.200}",
+      "success": "{primitive.color.emerald.700}",
+      "warning": "{primitive.color.amber.700}",
+      "danger": "{primitive.color.rose.600}"
+    }
+  }
+}

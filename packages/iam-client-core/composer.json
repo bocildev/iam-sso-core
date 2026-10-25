@@ -1,0 +1,15 @@
+{
+    "name": "bocildev/iam-client-core",
+    "description": "IAM-SSO-CORE client SDK: local RS256 JWT verification via JWKS, Claims::can() RBAC, and HMAC webhook verification.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1",
+        "firebase/php-jwt": "^6.0 || ^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Iam\\Client\\": "src/"
+        }
+    }
+}
