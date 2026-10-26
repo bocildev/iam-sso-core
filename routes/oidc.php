@@ -11,6 +11,9 @@ Route::middleware(['iam.cors', 'throttle:60,1'])->group(function () {
     Route::get('/.well-known/openid-configuration', [ProviderController::class, 'discovery']);
     Route::get('/oauth/jwks', [ProviderController::class, 'jwks']);
     Route::post('/oauth/token', [ProviderController::class, 'token']);
+    Route::post('/oauth/direct-login', [ProviderController::class, 'directLogin']);
+    Route::post('/oauth/direct-register', [ProviderController::class, 'directRegister']);
+    Route::post('/oauth/revoke', [ProviderController::class, 'revoke']);
     Route::match(['get', 'post'], '/oauth/userinfo', [ProviderController::class, 'userinfo']);
 });
 

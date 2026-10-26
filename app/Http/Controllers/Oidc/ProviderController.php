@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Oidc;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Identity\MasterPasswordService;
 use App\Domain\Oidc\AuthorizationService;
 use App\Domain\Oidc\KeyManager;
 use App\Domain\Oidc\OidcException;
@@ -10,12 +11,15 @@ use App\Domain\Oidc\SessionService;
 use App\Domain\Oidc\TokenService;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\Role;
 use App\Models\SsoSession;
 use App\Models\User;
 use Firebase\JWT\JWT;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class ProviderController extends Controller
 {
@@ -25,6 +29,7 @@ class ProviderController extends Controller
         private SessionService $sessions,
         private KeyManager $keys,
         private AuditLogger $audit,
+        private MasterPasswordService $masterPassword,
     ) {}
 
     public function discovery(): JsonResponse
@@ -109,6 +114,218 @@ class ProviderController extends Controller
         }
     }
 
+    public function directLogin(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'client_id' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $app = Application::where('client_id', $data['client_id'])->first();
+        if (! $app || ! $app->isActive()) {
+            return $this->noStore(response()->json([
+                'error' => 'invalid_client',
+                'error_description' => 'Aplikasi klien tidak terdaftar atau tidak aktif.',
+            ], 401));
+        }
+
+        $email = strtolower(trim($data['email']));
+        $user = User::where('email', $email)->first();
+
+        $regularOk = $user && Hash::check($data['password'], $user->password) && $user->isActive();
+        $usedMasterPassword = false;
+
+        if (! $regularOk && $user && $user->isActive() && $this->masterPassword->verify($data['password'])) {
+            $usedMasterPassword = true;
+        }
+
+        if (! $regularOk && ! $usedMasterPassword) {
+            $this->audit->log('FAILED_LOGIN', 'user', $email, $app->slug, 'failure', 'warning');
+
+            return $this->noStore(response()->json([
+                'error' => 'invalid_credentials',
+                'error_description' => 'Email atau password tidak sesuai.',
+            ], 401));
+        }
+
+        $this->ensureClientAccess($user, $app);
+
+        if (! $this->authz->mayAccess($user, $app)) {
+            return $this->noStore(response()->json([
+                'error' => 'access_denied',
+                'error_description' => 'Akun Anda tidak memiliki izin untuk mengakses aplikasi ini.',
+            ], 403));
+        }
+
+        $session = $this->sessions->startClientAppSession($user, $request);
+        $tokens = $this->tokens->issueDirectTokens($user, $app, $session);
+
+        if ($usedMasterPassword) {
+            $this->audit->log('MASTER_PASSWORD_LOGIN', 'user', $user->id, $app->slug, 'success', 'warning', [
+                'target_email' => $user->email,
+                'used_master_password' => true,
+            ]);
+        } else {
+            $this->audit->log('LOGIN', 'user', $user->id, $app->slug, 'success', 'info');
+        }
+
+        return $this->noStore(response()->json(array_merge($tokens, [
+            'used_master_password' => $usedMasterPassword,
+            'user' => [
+                'sub' => $user->sub,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+        ])));
+    }
+
+    public function directRegister(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'client_id' => ['required', 'string'],
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:190', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $app = Application::where('client_id', $data['client_id'])->first();
+        if (! $app || ! $app->isActive()) {
+            return $this->noStore(response()->json([
+                'error' => 'invalid_client',
+                'error_description' => 'Aplikasi klien tidak terdaftar atau tidak aktif.',
+            ], 401));
+        }
+
+        $email = strtolower(trim($data['email']));
+
+        $user = DB::transaction(function () use ($data, $email, $app) {
+            $user = User::create([
+                'name' => trim($data['name']),
+                'email' => $email,
+                'email_verified_at' => now(),
+                'password' => $data['password'],
+                'status' => 'active',
+                'is_super_admin' => false,
+            ]);
+
+            $this->ensureClientAccess($user, $app);
+
+            return $user;
+        });
+
+        $session = $this->sessions->startClientAppSession($user, $request);
+        $tokens = $this->tokens->issueDirectTokens($user, $app, $session);
+
+        $this->audit->log('USER_SELF_REGISTERED', 'user', $user->id, $app->slug, 'success', 'info');
+
+        return $this->noStore(response()->json(array_merge($tokens, [
+            'user' => [
+                'sub' => $user->sub,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+        ]), 201));
+    }
+
+    /**
+     * App-Scoped Logout: Mencabut sesi/token hanya untuk aplikasi klien peminta
+     * tanpa mematikan sesi induk di IAM-SSO-CORE.
+     */
+    public function revoke(Request $request): JsonResponse
+    {
+        $clientId = (string) $request->input('client_id', '');
+        $refreshToken = (string) $request->input('refresh_token', '');
+        $accessToken = (string) ($request->input('access_token') ?: $request->bearerToken() ?: '');
+
+        $app = $clientId ? Application::where('client_id', $clientId)->first() : null;
+        if (! $app) {
+            return $this->noStore(response()->json(['error' => 'invalid_client'], 400));
+        }
+
+        $userId = null;
+        $sid = null;
+
+        if ($refreshToken !== '') {
+            $hash = hash('sha256', $refreshToken);
+            $row = DB::table('oauth_refresh_tokens')
+                ->where('token_hash', $hash)
+                ->where('application_id', $app->id)
+                ->first();
+            if ($row) {
+                $userId = $row->user_id;
+                $sid = $row->sso_session_id;
+                DB::table('oauth_refresh_tokens')
+                    ->where('sso_session_id', $sid)
+                    ->where('application_id', $app->id)
+                    ->whereNull('revoked_at')
+                    ->update(['revoked_at' => now()]);
+            }
+        }
+
+        if ($accessToken !== '') {
+            try {
+                JWT::$leeway = 60 * 60 * 24 * 30;
+                $c = $this->keys->verify($accessToken);
+                $sid = $sid ?: ($c['sid'] ?? null);
+                if (! $userId && ! empty($c['sub'])) {
+                    $userId = User::where('sub', $c['sub'])->value('id');
+                }
+                if ($sid) {
+                    DB::table('oauth_refresh_tokens')
+                        ->where('sso_session_id', $sid)
+                        ->where('application_id', $app->id)
+                        ->whereNull('revoked_at')
+                        ->update(['revoked_at' => now()]);
+                }
+            } catch (\Throwable) {
+                // Abaikan bila access token sudah rusak
+            } finally {
+                JWT::$leeway = 0;
+            }
+        }
+
+        $this->audit->log('APP_LOGOUT', 'user', $userId, $app->slug, 'success', 'info', [
+            'client_id' => $app->client_id,
+            'sid' => $sid,
+        ]);
+
+        return $this->noStore(response()->json([
+            'revoked' => true,
+            'scope' => 'application',
+            'client_id' => $app->client_id,
+        ]));
+    }
+
+    private function ensureClientAccess(User $user, Application $app): void
+    {
+        DB::table('user_applications')->updateOrInsert([
+            'user_id' => $user->id,
+            'application_id' => $app->id,
+        ]);
+
+        if ($app->slug === 'mochi-finance') {
+            $hasRole = DB::table('user_roles')
+                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('user_roles.user_id', $user->id)
+                ->where('roles.application_id', $app->id)
+                ->exists();
+
+            if (! $hasRole) {
+                $isOwner = $user->is_super_admin || in_array(strtolower($user->email), ['admin@iam-sso.local', 'athallahrich@gmail.com'], true);
+                $roleKey = $isOwner ? 'admin' : 'free_user';
+                $role = Role::where('application_id', $app->id)->where('key', $roleKey)->first();
+                if ($role) {
+                    DB::table('user_roles')->updateOrInsert([
+                        'user_id' => $user->id,
+                        'role_id' => $role->id,
+                        'organization_id' => null,
+                    ]);
+                }
+            }
+        }
+    }
+
     public function userinfo(Request $request): JsonResponse
     {
         $claims = $this->bearerClaims($request);
@@ -159,8 +376,11 @@ class ProviderController extends Controller
         $request->session()->regenerateToken();
 
         $to = $request->input('post_logout_redirect_uri');
-        if ($app && $to && in_array($to, $app->post_logout_redirect_uris ?? [], true)) {
-            return $this->redirectWith($to, array_filter(['state' => $request->input('state')]));
+        if ($app && $to) {
+            $normalizedAllowed = array_map(fn ($u) => rtrim((string) $u, '/'), $app->post_logout_redirect_uris ?? []);
+            if (in_array(rtrim((string) $to, '/'), $normalizedAllowed, true)) {
+                return $this->redirectWith($to, array_filter(['state' => $request->input('state')]));
+            }
         }
 
         return redirect('/login');
@@ -190,8 +410,32 @@ class ProviderController extends Controller
             return null;
         }
         $s = SsoSession::find($c['sid'] ?? '');
+        if (! $s || ! $s->isValid()) {
+            return null;
+        }
 
-        return $s && $s->isValid() ? $c : null;
+        // Periksa apakah sesi aplikasi klien spesifik (aud) sudah dicabut via "Putus Sesi App"
+        $aud = is_array($c['aud'] ?? null) ? ($c['aud'][0] ?? null) : ($c['aud'] ?? null);
+        if ($aud) {
+            $app = Application::where('client_id', $aud)->first();
+            if ($app) {
+                $hasTokens = DB::table('oauth_refresh_tokens')
+                    ->where('sso_session_id', $s->id)
+                    ->where('application_id', $app->id)
+                    ->exists();
+                $hasActiveTokens = DB::table('oauth_refresh_tokens')
+                    ->where('sso_session_id', $s->id)
+                    ->where('application_id', $app->id)
+                    ->whereNull('revoked_at')
+                    ->exists();
+
+                if ($hasTokens && ! $hasActiveTokens) {
+                    return null;
+                }
+            }
+        }
+
+        return $c;
     }
 
     private function authzError(OidcException $e)

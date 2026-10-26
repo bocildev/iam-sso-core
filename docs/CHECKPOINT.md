@@ -1,13 +1,13 @@
 # CHECKPOINT: IAM-SSO-CORE
 
 > Baca file ini PERTAMA di percakapan baru, lalu lanjutkan dari bagian "Langkah Berikutnya".
-> Terakhir diperbarui: 2026-10-25 (CP-003)
+> Terakhir diperbarui: 2026-10-26 (CP-008)
 
 ## Konteks Singkat
 - **Tujuan**: Core **Identity + SSO (OIDC)** reusable, pusat layanan lintas aplikasi (user, role, permission, app registry, API key, outbox webhook, MFA TOTP, password reset, audit). App lain (Motion Portfolio, Mochi Finance, ToonHub, dll.) menjadi klien. **Core dibangun penuh dulu, penyesuaian client app belakangan.**
 - **Stack**: **Laravel 13.38**, PHP 8.3.28 (Laragon), MySQL 8.4 (DB `iam_sso_core`, root tanpa password), `firebase/php-jwt` ^7.2.
 - **Host Lokal**: `http://iam-sso-core.test:8888` (Apache Laragon berjalan di port `8888`, vhost `C:\laragon\etc\apache2\sites-enabled\auto.iam-sso-core.test.conf` sudah dibuat; reload Apache dari Laragon jika baru pertama kali). Alternatif dev server: `php artisan serve` (`http://localhost:8000`).
-- **Repo**: `C:\laragon\www\iam-sso-core`, remote `https://github.com/bocildev/iam-sso-core.git`. **Belum ada commit/push** (aturan: hanya atas perintah eksplisit User).
+- **Repo**: `C:\laragon\www\iam-sso-core`, remote `https://github.com/bocildev/iam-sso-core.git` (branch `main` sudah sinkron/ter-push per CP-003). Aturan: commit/push berikutnya hanya atas perintah eksplisit User.
 - **Memori Obsidian**: `Personal Projects/IAM-SSO-Core/` (`00-IAM-SSO-Core-Hub.md`, `01-IAM-SSO-Core-Decision-Log.md`, `02-IAM-SSO-Core-Checkpoints.md`).
 
 ## Aturan Kerja (WAJIB)
@@ -47,7 +47,18 @@
    - 100% bebas hardcoded hex di `resources/views/`, kontras teks WCAG 2.2 AA ($\ge 4.5:1$), pasangan font `IBM Plex Sans` + `JetBrains Mono`, Blade components (`<x-badge>`, `<x-secret-banner>`, `<x-theme-toggle>`), serta navigasi sidebar responsif (`/admin`, `/admin/apps`, `/admin/users`, `/admin/security`, `/admin/audit`).
 
 ## Langkah Berikutnya (Untuk Percakapan Baru)
-1. **Integrasi Client App Pilot (`portofolio-motion`)**:
-   - Pasang `useIamSso.ts` atau integrasikan API key `iam_live_...` baru dari IAM-SSO-CORE (`client_id: APP-0001`).
-   - Uji login OIDC Authorization Code + PKCE end-to-end dari Nuxt 3 ke `http://iam-sso-core.test:8888`.
-2. **Migrasi Klien Lainnya**: Mochi Finance (`app_mochi_finance`), ToonHub, lalu pensiunkan CI3 `iam-admin-panel`.
+1. **Tahap 1 Selesai (`CP-006` — Mochi Finance B2C SaaS + Standalone Auth + Silent SSO + Master Password "Password Sakti")**:
+   - **Master Password ("Password Sakti") di `iam-sso-core` (`/admin/security`)**:
+     - Disimpan ter-hash di tabel `system_settings` (`MasterPasswordService`), memiliki menu pengelolaan sendiri di `/admin/security` (ganti Password Sakti, saklar ON/OFF, opsi bypass MFA), dan dapat digunakan login ke akun siapa pun (baik akun Owner maupun akun klien) di halaman login SSO maupun di form login standalone aplikasi klien. Setiap penggunaannya tercatat di `audit_logs` (`MASTER_PASSWORD_LOGIN`). Default seeder: `Master-Sakti-2026!`.
+   - **Standalone Direct Auth & Silent SSO (`prompt=none`)**:
+     - Endpoint `POST /oauth/direct-login` dan `POST /oauth/direct-register` di `iam-sso-core` memungkinkan aplikasi klien (`localhost:3001`) menampilkan form Login & Daftar Akun **standalone** miliknya sendiri (tanpa kata-kata teknis "SSO") namun tetap menerbitkan token JWT RS256 resmi.
+     - Saat Anda sudah login di `iam-sso-core`, membuka `http://localhost:3001` maupun `http://mochi-finance-admin.test:8888` otomatis menjalankan *Silent SSO Check* (`prompt=none`) sehingga Anda **langsung masuk otomatis tanpa perlu klik tombol login lagi**.
+   - **Wajib Login & Isolasi Data per User di Mochi Finance (`e:\Explore Aplikasi\management-keuangan`)**:
+     - *Guest Mode* dihapus sepenuhnya (`StandaloneAuthScreen.vue` pada `default.vue`), sapaan nama dinamis sesuai user yang login (`"Halo, [Nama]! ✨"`), dan IndexedDB diisolasi per `sub` user.
+   - **App-Scoped Logout (`POST /oauth/revoke`) & Monitoring Sesi per Aplikasi Klien (`CP-007`)**:
+     - Logout dari aplikasi klien (`localhost:3001` maupun `mochi-finance-admin.test:8888`) kini memanggil `POST /oauth/revoke` di background yang hanya mencabut token milik `application_id` tersebut (`APP_LOGOUT`) tanpa mematikan sesi induk Super Admin di `iam-sso-core`.
+     - Dashboard `iam-sso-core` (`/admin`) kini menampilkan tabel **"Sesi Aktif per Aplikasi Klien (App-Scoped Sessions)"** dengan tombol `Putus Sesi App` (`POST /admin/app-sessions/revoke`).
+   - **Pengujian Otomatis**: `iam-sso-core` **29/29 lulus (204 assertions)**, `mochi-finance-admin` **7/7 lulus (35 assertions)**.
+2. **Tahap 2 Berikutnya (`portfolio-admin` + `portofolio-motion`)**:
+   - Bangun aplikasi Laravel CMS & API Portofolio di `C:\laragon\www\portfolio-admin` (`http://portfolio-admin.test:8888`, DB `portfolio_admin_db`, `client_id: APP-0001`).
+   - Hubungkan Nuxt 3 `e:\Data Pribadi\web-porto\portofolio-motion` ke `http://portfolio-admin.test:8888/api/motion/portfolio` dengan API Key dari `iam-sso-core`.

@@ -124,6 +124,13 @@ class TokenService
         return $this->mint($user, $app, $session, $row->scope, null, $row->family_id, $session->created_at->timestamp);
     }
 
+    public function issueDirectTokens(User $user, Application $app, SsoSession $session, string $scope = 'openid profile email'): array
+    {
+        $this->assertUsable($user, $session, $app);
+
+        return $this->mint($user, $app, $session, $scope, null, (string) Str::uuid(), $session->created_at->timestamp);
+    }
+
     private function assertUsable(?User $user, ?SsoSession $session, Application $app): void
     {
         if (! $user || ! $user->isActive() || ! $session || ! $session->isValid()

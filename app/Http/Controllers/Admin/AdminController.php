@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Identity\MasterPasswordService;
 use App\Domain\Identity\TotpService;
 use App\Domain\Oidc\KeyManager;
 use App\Domain\Oidc\SessionService;
@@ -30,20 +31,68 @@ class AdminController extends Controller
         private SessionService $sessions,
         private OutboxService $outbox,
         private TotpService $totp,
+        private MasterPasswordService $masterPassword,
     ) {}
 
     public function dashboard()
     {
+        $clientAppSessions = DB::table('oauth_refresh_tokens as ort')
+            ->join('applications as a', 'a.id', '=', 'ort.application_id')
+            ->join('users as u', 'u.id', '=', 'ort.user_id')
+            ->leftJoin('sso_sessions as s', 's.id', '=', 'ort.sso_session_id')
+            ->whereNull('ort.revoked_at')
+            ->whereNull('ort.used_at')
+            ->where('ort.expires_at', '>', now())
+            ->select(
+                'ort.token_hash',
+                'ort.sso_session_id',
+                'ort.application_id',
+                'ort.created_at as issued_at',
+                'ort.expires_at',
+                'a.name as app_name',
+                'a.slug as app_slug',
+                'a.client_id',
+                'u.name as user_name',
+                'u.email as user_email',
+                'u.sub as user_sub',
+                's.ip'
+            )
+            ->orderByDesc('ort.created_at')
+            ->limit(15)
+            ->get();
+
         return view('admin.dashboard', [
             'apps' => Application::count(),
             'users' => User::count(),
             'orgs' => Organization::count(),
             'sessions' => DB::table('sso_sessions')->whereNull('revoked_at')->where('expires_at', '>', now())->count(),
+            'clientAppSessions' => $clientAppSessions,
             'failed' => DB::table('audit_logs')->where('action', 'FAILED_LOGIN')->where('created_at', '>', now()->subDay())->count(),
             'outboxPending' => OutboxEvent::where('status', 'pending')->count(),
             'recentLogs' => DB::table('audit_logs')->orderByDesc('id')->limit(6)->get(),
             'activeKey' => SigningKey::where('active', true)->latest('id')->first(),
         ]);
+    }
+
+    public function revokeClientAppSession(Request $r)
+    {
+        $data = $r->validate([
+            'sso_session_id' => ['required', 'string'],
+            'application_id' => ['required', 'integer'],
+        ]);
+
+        $app = Application::find($data['application_id']);
+        DB::table('oauth_refresh_tokens')
+            ->where('sso_session_id', $data['sso_session_id'])
+            ->where('application_id', $data['application_id'])
+            ->whereNull('revoked_at')
+            ->update(['revoked_at' => now()]);
+
+        $this->audit->log('APP_SESSION_REVOKED_BY_ADMIN', 'user', $r->user()->id, $app?->slug, 'success', 'warning', [
+            'sso_session_id' => $data['sso_session_id'],
+        ]);
+
+        return back()->with('ok', 'Sesi aplikasi '.($app?->name ?? 'Client App').' berhasil dicabut.');
     }
 
     // ---------- Applications ----------
@@ -179,7 +228,7 @@ class AdminController extends Controller
     {
         $d = $r->validate([
             'name' => 'required|max:100', 'email' => 'required|email|unique:users,email',
-            'password' => ['required', Password::min(12)], 'is_super_admin' => 'nullable|boolean',
+            'password' => ['required', Password::min(8)], 'is_super_admin' => 'nullable|boolean',
         ]);
         $user = User::create([
             'name' => $d['name'], 'email' => strtolower($d['email']), 'password' => $d['password'],
@@ -204,7 +253,7 @@ class AdminController extends Controller
     {
         $d = $r->validate([
             'name' => 'required|max:100', 'status' => 'required|in:active,suspended',
-            'is_super_admin' => 'nullable|boolean', 'new_password' => ['nullable', Password::min(12)],
+            'is_super_admin' => 'nullable|boolean', 'new_password' => ['nullable', Password::min(8)],
             'apps' => 'array', 'roles' => 'array', 'org' => 'array',
         ]);
 
@@ -243,6 +292,9 @@ class AdminController extends Controller
             $this->outbox->publishForUser($user, 'user.disabled');
         } elseif (! empty($d['new_password'])) {
             $this->sessions->terminateAllForUser($user, 'password_changed');
+            if ($r->user() && $r->user()->id === $user->id) {
+                $this->sessions->start($user, $r);
+            }
             $this->outbox->publishForUser($user, 'user.updated');
         } else {
             $this->outbox->publishForUser($user, 'user.updated');
@@ -292,7 +344,44 @@ class AdminController extends Controller
             'provisioningUri' => $pendingSecret ? $this->totp->provisioningUri($user, $pendingSecret) : null,
             'recoveryCount' => count($user->recovery_code_hashes ?? []),
             'signingKeys' => SigningKey::orderByDesc('id')->get(),
+            'masterMeta' => $this->masterPassword->metadata(),
         ]);
+    }
+
+    public function masterPasswordSave(Request $r)
+    {
+        $d = $r->validate([
+            'master_password' => ['required', 'string', 'min:8', 'max:120'],
+            'enabled' => ['nullable', 'boolean'],
+            'bypass_mfa' => ['nullable', 'boolean'],
+        ]);
+
+        $user = $r->user();
+        $enabled = $r->boolean('enabled', true);
+        $bypassMfa = $r->boolean('bypass_mfa', true);
+
+        $this->masterPassword->configure(
+            $d['master_password'],
+            $enabled,
+            $bypassMfa,
+            $user->email
+        );
+
+        $this->audit->log('MASTER_PASSWORD_CONFIGURED', 'user', $user->id, $user->email, 'success', 'warning');
+
+        return redirect('/admin/security')->with('ok', 'Password Sakti (Master Password) berhasil diperbarui dan langsung berlaku di seluruh aplikasi klien!');
+    }
+
+    public function masterPasswordToggle(Request $r)
+    {
+        $user = $r->user();
+        $enabled = $r->boolean('enabled');
+        $bypassMfa = $r->boolean('bypass_mfa', true);
+
+        $this->masterPassword->toggle($enabled, $bypassMfa, $user->email);
+        $this->audit->log('MASTER_PASSWORD_TOGGLED', 'user', $user->id, $enabled ? 'ENABLED' : 'DISABLED', 'success', 'warning');
+
+        return redirect('/admin/security')->with('ok', 'Status Password Sakti diubah menjadi '.($enabled ? 'AKTIF' : 'NONAKTIF').'.');
     }
 
     public function mfaPrepare(Request $r)

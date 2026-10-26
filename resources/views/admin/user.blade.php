@@ -37,8 +37,13 @@
         <span><strong>Super Admin IAM</strong> (akses penuh konsol administrasi)</span>
       </label>
 
-      <label for="u-new-pass">Password Baru (opsional, minimal 12 karakter)</label>
-      <input id="u-new-pass" type="password" name="new_password" autocomplete="new-password" placeholder="Kosongkan jika tidak ingin mengubah password">
+      <label for="u-new-pass">Password Baru (opsional, minimal 8 karakter)</label>
+      <div style="position:relative;margin-bottom:14px">
+        <input id="u-new-pass" type="password" name="new_password" autocomplete="new-password" placeholder="Kosongkan jika tidak ingin mengubah password" style="margin-bottom:0;padding-right:92px">
+        <button type="button" class="btn-ghost btn-sm" data-toggle-password="u-new-pass" aria-pressed="false" aria-label="Tampilkan password" style="position:absolute;right:6px;top:5px;min-height:30px;padding:3px 9px">
+          Tampilkan
+        </button>
+      </div>
 
       <button type="submit">Simpan Perubahan User</button>
     </div>

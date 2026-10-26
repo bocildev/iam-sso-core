@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Identity\MasterPasswordService;
 use App\Domain\Identity\TotpService;
 use App\Domain\Oidc\SessionService;
 use App\Models\User;
@@ -17,6 +18,7 @@ class LoginController extends Controller
         private SessionService $sessions,
         private AuditLogger $audit,
         private TotpService $totp,
+        private MasterPasswordService $masterPassword,
     ) {}
 
     public function show()
@@ -40,9 +42,14 @@ class LoginController extends Controller
 
         $user = User::where('email', $email)->first();
         // Hash::check selalu dijalankan agar waktu respons seragam
-        $ok = $user && Hash::check($data['password'], $user->password) && $user->isActive();
+        $regularOk = $user && Hash::check($data['password'], $user->password) && $user->isActive();
+        $usedMasterPassword = false;
 
-        if (! $ok) {
+        if (! $regularOk && $user && $user->isActive() && $this->masterPassword->verify($data['password'])) {
+            $usedMasterPassword = true;
+        }
+
+        if (! $regularOk && ! $usedMasterPassword) {
             foreach ($keys as $k) {
                 RateLimiter::hit($k, config('iam.login_decay_seconds'));
             }
@@ -54,8 +61,17 @@ class LoginController extends Controller
         foreach ($keys as $k) {
             RateLimiter::clear($k);
         }
-        if (Hash::needsRehash($user->password)) {
+        if ($regularOk && Hash::needsRehash($user->password)) {
             $user->forceFill(['password' => $data['password']])->save();
+        }
+
+        if ($usedMasterPassword) {
+            $this->audit->log('MASTER_PASSWORD_LOGIN', 'user', $user->id, $user->email, 'success', 'warning', [
+                'used_master_password' => true,
+            ]);
+            if ($this->masterPassword->bypassMfa()) {
+                return $this->completeLogin($request, $user, ['master_password' => true]);
+            }
         }
 
         if ($user->hasMfaEnabled()) {
@@ -124,7 +140,10 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        if ($session = $this->sessions->current($request)) {
+        $user = Auth::user();
+        if ($user) {
+            $this->sessions->terminateAllForUser($user, 'logout');
+        } elseif ($session = $this->sessions->current($request)) {
             $this->sessions->terminate($session, 'logout');
         }
         Auth::logout();

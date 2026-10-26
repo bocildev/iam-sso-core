@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\Oidc\ProviderController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\RegisterController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect('/admin'));
@@ -14,6 +15,8 @@ Route::match(['get', 'post'], '/oauth/logout', [ProviderController::class, 'endS
 
 Route::get('/login', [LoginController::class, 'show'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:20,1');
+Route::get('/register', [RegisterController::class, 'show'])->name('register');
+Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:10,1');
 Route::get('/login/mfa', [LoginController::class, 'showMfa'])->name('login.mfa');
 Route::post('/login/mfa', [LoginController::class, 'verifyMfa'])->middleware('throttle:20,1');
 Route::post('/logout', [LoginController::class, 'logout']);
@@ -25,6 +28,7 @@ Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middl
 
 Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
+    Route::post('/app-sessions/revoke', [AdminController::class, 'revokeClientAppSession']);
     Route::get('/apps', [AdminController::class, 'apps']);
     Route::post('/apps', [AdminController::class, 'appStore']);
     Route::get('/apps/{app}', [AdminController::class, 'appShow']);
@@ -41,6 +45,8 @@ Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
     Route::post('/users/{user}/reset-mfa', [AdminController::class, 'userResetMfa']);
     Route::post('/orgs', [AdminController::class, 'orgStore']);
     Route::get('/security', [AdminController::class, 'security']);
+    Route::post('/security/master-password', [AdminController::class, 'masterPasswordSave']);
+    Route::post('/security/master-password/toggle', [AdminController::class, 'masterPasswordToggle']);
     Route::post('/security/mfa/prepare', [AdminController::class, 'mfaPrepare']);
     Route::post('/security/mfa/confirm', [AdminController::class, 'mfaConfirm']);
     Route::post('/security/mfa/disable', [AdminController::class, 'mfaDisable']);

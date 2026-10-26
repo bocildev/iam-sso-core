@@ -25,7 +25,24 @@ class SessionService
             'expires_at' => now()->addSeconds(config('iam.sso_session_ttl')),
         ]);
         $user->forceFill(['last_login_at' => now()])->save();
-        $request->session()->put('iam_sid', $session->id);
+        if ($request->hasSession()) {
+            $request->session()->put('iam_sid', $session->id);
+        }
+
+        return $session;
+    }
+
+    /** Buat sesi khusus aplikasi klien (App-Scoped) tanpa mengubah cookie sesi pusat IAM. */
+    public function startClientAppSession(User $user, Request $request): SsoSession
+    {
+        $session = SsoSession::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'ip' => $request->ip(),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 250),
+            'expires_at' => now()->addSeconds(config('iam.sso_session_ttl')),
+        ]);
+        $user->forceFill(['last_login_at' => now()])->save();
 
         return $session;
     }

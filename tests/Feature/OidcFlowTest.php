@@ -192,4 +192,155 @@ class OidcFlowTest extends TestCase
         $this->postJson('/oauth/token', ['grant_type' => 'refresh_token', 'refresh_token' => $tok->json('refresh_token'), 'client_id' => $app->client_id])->assertStatus(400);
         $this->withHeader('Authorization', 'Bearer '.$tok->json('access_token'))->getJson('/oauth/userinfo')->assertStatus(401);
     }
+
+    public function test_public_user_can_self_register_and_gets_free_user_role_on_mochi_finance(): void
+    {
+        $mochiApp = Application::create([
+            'slug' => 'mochi-finance',
+            'name' => 'Mochi Finance',
+            'client_id' => 'app_mochi_finance',
+            'client_secret_hash' => null,
+            'redirect_uris' => ['http://localhost:3001/auth/callback'],
+            'post_logout_redirect_uris' => ['http://localhost:3001/'],
+        ]);
+
+        $freeRole = Role::create([
+            'application_id' => $mochiApp->id,
+            'key' => 'free_user',
+            'name' => 'Mochi Free Starter',
+        ]);
+
+        $this->get('/register')->assertOk()->assertSee('Daftar Akun Baru');
+
+        $res = $this->post('/register', [
+            'name' => 'Rina Maharani',
+            'email' => 'rina@mochi.id',
+            'password' => 'Secret-pass-123',
+            'password_confirmation' => 'Secret-pass-123',
+        ]);
+
+        $res->assertRedirect();
+        $this->assertDatabaseHas('users', [
+            'email' => 'rina@mochi.id',
+            'is_super_admin' => false,
+            'status' => 'active',
+        ]);
+
+        $user = \App\Models\User::where('email', 'rina@mochi.id')->firstOrFail();
+        $this->assertDatabaseHas('user_roles', [
+            'user_id' => $user->id,
+            'role_id' => $freeRole->id,
+        ]);
+    }
+
+    public function test_master_password_and_standalone_direct_login_for_client_apps(): void
+    {
+        app(\App\Domain\Oidc\KeyManager::class)->activeKey();
+
+        $mochiApp = Application::create([
+            'slug' => 'mochi-finance',
+            'name' => 'Mochi Finance',
+            'client_id' => 'app_mochi_finance',
+            'client_secret_hash' => null,
+            'redirect_uris' => ['http://localhost:3001/auth/callback'],
+            'post_logout_redirect_uris' => ['http://localhost:3001/'],
+        ]);
+
+        $freePerm = Permission::create([
+            'application_id' => $mochiApp->id,
+            'key' => 'finance.basic',
+        ]);
+        $freeRole = Role::create([
+            'application_id' => $mochiApp->id,
+            'key' => 'free_user',
+            'name' => 'Mochi Free Starter',
+        ]);
+        $freeRole->permissions()->attach($freePerm->id);
+
+        // 1. Standalone Direct Register dari klien Mochi Finance
+        $regRes = $this->postJson('/oauth/direct-register', [
+            'client_id' => 'app_mochi_finance',
+            'name' => 'Dina Klien',
+            'email' => 'dina@client.id',
+            'password' => 'PasswordKlien123',
+            'password_confirmation' => 'PasswordKlien123',
+        ]);
+        $regRes->assertStatus(201)->assertJsonStructure(['access_token', 'refresh_token', 'user']);
+
+        // 2. Super Admin mengatur Password Sakti di /admin/security/master-password
+        $admin = User::factory()->create([
+            'email' => 'admin@iam-sso.local',
+            'is_super_admin' => true,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/security/master-password', [
+                'master_password' => 'SaktiMandraguna2026!',
+                'enabled' => '1',
+                'bypass_mfa' => '1',
+            ])
+            ->assertRedirect('/admin/security');
+
+        // 3. Login ke akun Dina Klien menggunakan Password Sakti melalui /oauth/direct-login
+        $loginRes = $this->postJson('/oauth/direct-login', [
+            'client_id' => 'app_mochi_finance',
+            'email' => 'dina@client.id',
+            'password' => 'SaktiMandraguna2026!',
+        ]);
+
+        $loginRes->assertOk()
+            ->assertJsonPath('used_master_password', true)
+            ->assertJsonPath('user.email', 'dina@client.id');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'MASTER_PASSWORD_LOGIN',
+        ]);
+
+        // 4. Matikan sementara Password Sakti -> tidak bisa dipakai login lagi
+        $this->actingAs($admin)
+            ->post('/admin/security/master-password/toggle', [
+                'enabled' => '0',
+                'bypass_mfa' => '1',
+            ])
+            ->assertRedirect('/admin/security');
+
+        $this->postJson('/oauth/direct-login', [
+            'client_id' => 'app_mochi_finance',
+            'email' => 'dina@client.id',
+            'password' => 'SaktiMandraguna2026!',
+        ])->assertStatus(401);
+
+        // 5. App-Scoped Logout (/oauth/revoke): mencabut token aplikasi klien tanpa me-logout sesi induk Super Admin
+        $revokeRes = $this->postJson('/oauth/revoke', [
+            'client_id' => 'app_mochi_finance',
+            'refresh_token' => $loginRes->json('refresh_token'),
+            'access_token' => $loginRes->json('access_token'),
+        ]);
+        $revokeRes->assertOk()->assertJsonPath('revoked', true)->assertJsonPath('scope', 'application');
+
+        // Refresh token aplikasi tersebut sudah dicabut
+        $this->postJson('/oauth/token', [
+            'grant_type' => 'refresh_token',
+            'client_id' => 'app_mochi_finance',
+            'refresh_token' => $loginRes->json('refresh_token'),
+        ])->assertStatus(400);
+
+        // Access token aplikasi tersebut kini juga ditolak saat memanggil /oauth/userinfo
+        $this->withToken($loginRes->json('access_token'))
+            ->getJson('/oauth/userinfo')
+            ->assertStatus(401);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'APP_LOGOUT',
+            'target' => 'mochi-finance',
+        ]);
+
+        // 6. Global Logout (/logout) mencabut seluruh sesi & token milik user tersebut
+        $this->actingAs($admin)->post('/logout')->assertRedirect('/login');
+        $this->assertDatabaseMissing('sso_sessions', [
+            'user_id' => $admin->id,
+            'revoked_at' => null,
+        ]);
+    }
 }

@@ -103,6 +103,61 @@
   </div>
 </div>
 
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Sesi Aktif per Aplikasi Klien (App-Scoped Sessions)</h2>
+      <p class="muted" style="margin:4px 0 0;font-size:12.5px">
+        Daftar sesi login yang sedang aktif di masing-masing aplikasi klien. Mencabut sesi di bawah ini hanya mengeluarkan user dari aplikasi terkait tanpa mematikan sesi induk IAM.
+      </p>
+    </div>
+    <x-badge variant="info">{{ count($clientAppSessions ?? []) }} Sesi Aplikasi</x-badge>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Aplikasi Klien</th>
+          <th>Pengguna</th>
+          <th>Session ID</th>
+          <th>Waktu Login</th>
+          <th>IP</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse($clientAppSessions ?? [] as $cs)
+          <tr>
+            <td>
+              <strong>{{ $cs->app_name }}</strong>
+              <div class="muted" style="font-size:11.5px"><code>{{ $cs->client_id }}</code></div>
+            </td>
+            <td>
+              <strong>{{ $cs->user_name }}</strong>
+              <div class="muted" style="font-size:11.5px">{{ $cs->user_email }}</div>
+            </td>
+            <td><code>{{ \Illuminate\Support\Str::limit($cs->sso_session_id, 14) }}</code></td>
+            <td class="muted">{{ $cs->issued_at }}</td>
+            <td class="muted">{{ $cs->ip ?: '-' }}</td>
+            <td>
+              <form method="post" action="/admin/app-sessions/revoke" style="margin:0">
+                @csrf
+                <input type="hidden" name="sso_session_id" value="{{ $cs->sso_session_id }}">
+                <input type="hidden" name="application_id" value="{{ $cs->application_id }}">
+                <button type="submit" class="btn btn-danger btn-sm">Putus Sesi App</button>
+              </form>
+            </td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="6" class="muted">Belum ada sesi aplikasi klien yang aktif saat ini.</td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+</div>
+
 @if(!empty($recentLogs) && count($recentLogs))
 <div class="card">
   <div class="card-header">

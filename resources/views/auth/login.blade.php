@@ -44,7 +44,12 @@
       </button>
     </form>
 
-    <div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px" class="muted">
+    <div style="margin-top:16px;text-align:center;font-size:13px">
+      <span class="muted">Belum punya akun klien?</span>
+      <a href="/register" style="font-weight:600;margin-left:4px">Daftar Gratis Sekarang</a>
+    </div>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px" class="muted">
       <span>OpenID Connect 1.0 · PKCE S256</span>
       <span>RS256 Signed</span>
     </div>
