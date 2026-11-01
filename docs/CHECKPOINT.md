@@ -191,5 +191,18 @@
   - **Pengujian Otomatis**:
     - `iam-sso-core`: **50/50 tests lulus (300 assertions)**.
     - `portfolio-admin`: **10/10 tests lulus (35 assertions)**.
-    - `mochi-finance-admin`: **7/7 tests lulus (35 assertions)**.
+    - `mochi-finance-admin`: **7/7 tests lulus (36 assertions)**.
     - `portofolio-motion`: **Nuxt 3 production build 100% sukses**.
+- **Mochi Finance SaaS Freemium Logic & Smart Bi-directional Sync (`CP-018` & `CP-019`)**:
+  - **SaaS Freemium & Trial Business Logic**:
+    - Free Starter kini bertindak sebagai Free Trial 14 hari dengan kuota maksimal 2 dompet fisik yang terhubung ke cloud.
+    - Fitur eksklusif Mochi PRO (Inbox Approval, Anggaran Bulanan, Grafik & Analitik, Celengan Impian, Tagihan Rutin) dilindungi dengan badge 🔒 dan modal interaktif Kawaii Upgrade Gate.
+    - Transaksi baru terkunci otomatis saat masa trial 14 hari berakhir.
+  - **Smart Bi-directional Sync Engine**:
+    - PWA Nuxt (`management-keuangan`) mengintegrasikan `smartBiDirectionalSync`: auto-pull jika cloud memiliki dompet, auto-push jika cloud kosong namun perangkat lokal memiliki data.
+    - Tombol Sync Cloud di desktop dan mobile shell kini memicu sinkronisasi dua arah.
+    - Auto-sync terpicu setiap kali dompet ditambah, diubah, atau dihapus.
+  - **Auto-Healing & Data Reconciliation (`mochi-finance-admin`)**:
+    - `CloudSyncController::pull()` otomatis me-remap data orphan dari sub seeder lama (`60bc...` / `usr_owner...`) ke sub resmi aktif pengguna (`69bc...`).
+    - Otomatis men-seed 3 dompet resmi (*BCA Utama*, *GoPay*, *Uang Tunai*) dan 7 transaksi bagi akun Super Admin jika cloud masih kosong.
+    - Dashboard Overview menghitung fisik riil `COUNT(*)` dari `finance_wallets` dan `finance_transactions`.
