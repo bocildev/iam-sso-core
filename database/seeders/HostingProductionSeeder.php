@@ -123,16 +123,19 @@ class HostingProductionSeeder extends Seeder
                     'http://localhost:3001/auth/callback',
                     "https://{$rootDomain}/mochi-finance/auth/callback",
                     "https://mochi.{$rootDomain}/auth/callback",
+                    'https://mochi-finance-iota.vercel.app/auth/callback',
                 ],
                 'post_logout_redirect_uris' => [
                     'http://localhost:3001',
                     "https://{$rootDomain}/mochi-finance",
                     "https://mochi.{$rootDomain}",
+                    'https://mochi-finance-iota.vercel.app',
                 ],
                 'allowed_origins' => [
                     'http://localhost:3001',
                     "https://{$rootDomain}",
                     "https://mochi.{$rootDomain}",
+                    'https://mochi-finance-iota.vercel.app',
                 ],
                 'webhook_url' => "https://{$rootDomain}/mochi-finance-admin/api/webhooks/iam",
                 'roles' => [
@@ -179,16 +182,19 @@ class HostingProductionSeeder extends Seeder
                     'http://mochi-finance-admin.test:8888/auth/callback',
                     "https://{$rootDomain}/mochi-finance-admin/auth/callback",
                     "https://mochi-admin.{$rootDomain}/auth/callback",
+                    "https://mochi-finance-admin.{$rootDomain}/auth/callback",
                 ],
                 'post_logout_redirect_uris' => [
                     'http://mochi-finance-admin.test:8888',
                     "https://{$rootDomain}/mochi-finance-admin",
                     "https://mochi-admin.{$rootDomain}",
+                    "https://mochi-finance-admin.{$rootDomain}",
                 ],
                 'allowed_origins' => [
                     'http://mochi-finance-admin.test:8888',
                     "https://{$rootDomain}",
                     "https://mochi-admin.{$rootDomain}",
+                    "https://mochi-finance-admin.{$rootDomain}",
                 ],
                 'webhook_url' => "https://{$rootDomain}/mochi-finance-admin/api/webhooks/iam",
                 'roles' => [
