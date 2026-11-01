@@ -71,6 +71,25 @@ $terms = [
       ['Google Client ID & Secret', 'Nomor tanda pengenal dan kata sandi rahasia yang diterbitkan Google Cloud Console agar Google mengenali IAM Anda saat meminta verifikasi login.', 'Nomor kemitraan resmi antara toko Anda dan pihak Google.'],
     ],
   ],
+  'media-storage' => [
+    'title' => 'Penyimpanan Media & Dokumen',
+    'items' => [
+      ['Centralized Media Engine', 'Gudang terpusat untuk menyimpan semua gambar dan berkas dokumen dari berbagai aplikasi klien di satu tempat.', 'Gudang logistik bersama; toko cabang tidak perlu sewa ruko gudang sendiri-sendiri.'],
+      ['Auto-Compression Gambar', 'Penyusutan otomatis ukuran file gambar yang melebihi batas 500 KB agar cepat dimuat di web tanpa merusak ketajaman visual.', 'Pengepakan vakum baju agar muat rapi di koper.'],
+      ['MIME Type', 'Label pengenal standar internet yang menyatakan jenis isi file (contoh: image/jpeg untuk foto, application/pdf untuk dokumen).', 'Label stiker jenis paket: "Makanan Cepat Saji" atau "Surat Dokumen Rahasia".'],
+      ['Multipart Form-Data', 'Metode pengiriman berkas digital dari formulir web atau aplikasi ke server secara bertahap dan terpotong-potong.', 'Mengirim paket berukuran besar lewat mobil box kurir khusus berkas.'],
+    ],
+  ],
+  'server-debugger' => [
+    'title' => 'Pemeliharaan Server & Debugger',
+    'items' => [
+      ['Web Debugger / Artisan Runner', 'Fitur di konsol admin untuk menjalankan tugas teknis server (seperti migrasi dan hapus cache) langsung dari browser web tanpa terminal SSH.', 'Remote kontrol pintar untuk menyalakan atau merawat mesin dari kejauhan tanpa harus membuka kap mesin mobil.'],
+      ['Database Migration (Migrate)', 'Proses otomatis untuk membuat, mengubah, atau memperbarui struktur tabel dan kolom di database.', 'Mandor bangunan yang menata denah kamar dan partisi baru sesuai blueprint arsitek.'],
+      ['Database Seeder', 'Perintah untuk mengisi tabel database dengan data permulaan wajib (seperti akun Super Admin dan pendaftaran aplikasi resmi).', 'Menata furnitur pertama dan memberikan kunci master saat gedung baru selesai dibangun.'],
+      ['Storage Symlink', 'Jalan pintas (shortcut) yang menghubungkan folder penyimpanan berkas internal ke folder web publik agar gambar/dokumen bisa diakses browser.', 'Jembatan penyeberangan khusus dari gudang barang privat langsung ke etalase toko depan.'],
+      ['Optimize Clear', 'Perintah untuk menghapus seluruh file cache konfigurasi, rute URL, dan tampilan Blade agar perubahan kode langsung terbaca segar.', 'Menyapu bersih papan tulis sekolah agar catatan pelajaran lama hilang dan catatan baru terlihat jelas.'],
+    ],
+  ],
 ];
 @endphp
 @section('admin')

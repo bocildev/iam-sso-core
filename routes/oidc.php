@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MachineController;
+use App\Http\Controllers\Api\StorageController;
 use App\Http\Controllers\Oidc\ProviderController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,11 @@ Route::middleware(['iam.cors', 'throttle:60,1'])->group(function () {
     Route::post('/oauth/direct-register', [ProviderController::class, 'directRegister']);
     Route::post('/oauth/revoke', [ProviderController::class, 'revoke']);
     Route::match(['get', 'post'], '/oauth/userinfo', [ProviderController::class, 'userinfo']);
+
+    // Engine Penyimpanan Terpusat (Centralized Storage & Media Engine)
+    Route::post('/api/v1/storage/upload', [StorageController::class, 'upload']);
+    Route::get('/api/v1/storage/assets', [StorageController::class, 'index']);
+    Route::delete('/api/v1/storage/assets/{id}', [StorageController::class, 'destroy']);
 });
 
 // API mesin ber-API key (scope, hash-only, fail-closed). Tanpa query-string token.

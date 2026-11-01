@@ -130,3 +130,46 @@
     - Contoh: `mochi-finance-admin` (port 8888), `portfolio-admin` (port 8888). Khusus Super Admin / Owner via kredensial SSO resmi / Master Password. Login Google dari pengguna umum otomatis ditolak (kecuali akun Super Admin).
   - Tampilan konsol admin (`/admin/apps` & `/admin/apps/{id}`) menyajikan 3 kartu preset instan, badge kategori visual, serta portal pengguna `/` untuk akun non-super-admin.
   - Halaman kustom error 403 & 419 bertema VyrnForge Dark Tech dengan tombol aksi bersahabat.
+- **Centralized Media Storage & Upload Engine (`CP-014`)**:
+  - Migrasi `2026_11_01_000007_create_media_assets_table`: tabel `media_assets` mencatat riwayat file terpusat (`application_id`, `folder`, `original_name`, `file_name`, `file_path`, `disk`, `mime_type`, `file_size`, `original_size`, `is_compressed`, `public_url`).
+  - **Image Compressor Engine (`ImageCompressorService`)**:
+    - Batas target gambar: $\le 500$ KB.
+    - Menggunakan native GD untuk auto-resampling (max 1920px), multi-pass quality compression (85 -> 45), dan auto-conversion ke format optimal (WebP / JPEG / PNG) dengan tetap mempertahankan transparansi alpha.
+  - **Document Guard**:
+    - Dokumen (PDF, DOC, DOCX, TXT) dibatasi ketat maksimal $\le 2$ MB. File melebihi batas ditolak dengan validasi pesan awam.
+    - File biner berbahaya (`.php`, `.exe`, `.sh`, `.bat`, dll.) diblokir dan dicatat di `audit_logs` (`MEDIA_BLOCKED`).
+  - **API Endpoint Terpusat & Konsol Admin**:
+    - `POST /api/v1/storage/upload`: Autentikasi multi-tier via API Key (`X-API-Key`), Client ID (`X-Client-Id`), atau Session Admin.
+    - Halaman Konsol `/admin/media` (Media & Storage Explorer): metrik kapasitas penyimpanan, penghematan kompresi, filter per aplikasi, form upload instan, dan tombol salin link publik 1-klik.
+    - Entri edukasi di `/admin/glossary` (kategori *Penyimpanan Media & Dokumen*).
+  - **Integrasi ke Portfolio Admin (`portfolio-admin`)**:
+    - Endpoint relay `POST /portfolio/upload` meneruskan file via HTTP Client ke IAM Core.
+    - UI modal "Edit Pengalaman Kerja" (dan Tab Profil) kini dilengkapi tombol `📁 Unggah Logo / Avatar` interaktif dan thumbnail pratinjau instan.
+  - **Pengujian Otomatis**:
+    - `iam-sso-core`: **43/43 tests lulus (275 assertions)**.
+    - `portfolio-admin`: **10/10 tests lulus (35 assertions)**.
+- **Git Remote Synchronization Backoffice Apps (`CP-015`)**:
+  - `portfolio-admin` dihubungkan dan di-push ke remote `https://github.com/bocildev/portofolio-admin.git` (branch `main`).
+  - `mochi-finance-admin` dihubungkan dan di-push ke remote `https://github.com/bocildev/mochi-finance-admin.git` (branch `main`).
+  - Identitas commit menggunakan user resmi: `bocildev <athallahrich@gmail.com>`.
+  - Berkas rahasia `.env` terisolasi dengan aman di `.gitignore`.
+- **Hosting Readiness, Web Debugger & Multi-App Data Realignment (`CP-016`)**:
+  - **1. Dokumentasi Deployment Lengkap (`docs/DEPLOYMENT_GUIDE.md`)**:
+    - Panduan arsitektur deployment ekosistem untuk VPS Ubuntu 24.04, cPanel shared hosting, dan Vercel edge.
+    - Dilengkapi panduan DNS, pemetaan 5 subdomain, konfigurasi Nginx reverse proxy, SSL Let's Encrypt, PM2, dan checklist SSO/OIDC produksi.
+  - **2. Dedicated Hosting Production Seeder (`HostingProductionSeeder.php`)**:
+    - Disediakan khusus untuk deployment hosting: murni hanya men-seed **1 Akun Super Admin** (`athallahrich@gmail.com`) dan 4 aplikasi ekosistem tanpa akun dummy klien/penguji. Akun lokal dev tetap dipertahankan aman.
+  - **3. Web Debugger & Artisan Console (`/admin/debugger`)**:
+    - Solusi bagi hosting tanpa terminal SSH: Super Admin dapat menjalankan `php artisan migrate`, `db:seed`, `optimize:clear`, `optimize`, `storage:link`, `iam:outbox-work` serta perintah artisan ter-whitelist langsung dari web UI.
+    - Dilengkapi diagnostik status server real-time (koneksi DB, izin folder writable, ekstensi PHP wajib, memori) dan terminal output box. Setiap aksi dicatat di `audit_logs` (`DEBUGGER_COMMAND_EXECUTED`).
+    - Ditambahkan 5 istilah baru di Kamus Istilah `/admin/glossary` (kategori *Pemeliharaan Server & Debugger*).
+  - **4. Penataan Data Mochi Finance dari 0**:
+    - Di client PWA Nuxt 3 (`management-keuangan/app/utils/db.ts`), seluruh data transaksi demo, target tabungan, anggaran tiruan, dan inbox SMS palsu dihilangkan. Pengguna memulai bersih dari 1 dompet Rp 0.
+    - Di backoffice `mochi-finance-admin`, disediakan `HostingProductionSeeder.php` dengan metrik 0 dan tabel `upgrade_requests` bersih.
+  - **5. Kelengkapan Data Portofolio 100%**:
+    - Di `portfolio-admin`, seluruh 8 konfigurasi (`profile`, `skills`, `software_tools`, `experiences`, `stats`, `role_lenses`, `certifications`, `hobbies`) dan 5 proyek studi kasus terisi penuh di database.
+  - **Pengujian Otomatis**:
+    - `iam-sso-core`: **50/50 tests lulus (300 assertions)**.
+    - `portfolio-admin`: **10/10 tests lulus (35 assertions)**.
+    - `mochi-finance-admin`: **7/7 tests lulus (35 assertions)**.
+    - `portofolio-motion`: **Nuxt 3 production build 100% sukses**.

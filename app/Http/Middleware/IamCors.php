@@ -45,7 +45,7 @@ class IamCors
     {
         $response->headers->set('Access-Control-Allow-Origin', $allowOrigin);
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-API-Key, Accept');
+        $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-API-Key, X-Client-Id, Accept');
         if ($allowOrigin !== '*') {
             $response->headers->set('Vary', 'Origin');
         }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\DebuggerController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\Oidc\ProviderController;
@@ -64,7 +65,12 @@ Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
     Route::post('/security/mfa/prepare', [AdminController::class, 'mfaPrepare']);
     Route::post('/security/mfa/confirm', [AdminController::class, 'mfaConfirm']);
     Route::post('/security/mfa/disable', [AdminController::class, 'mfaDisable']);
+    Route::get('/media', [AdminController::class, 'media']);
+    Route::delete('/media/{id}', [AdminController::class, 'mediaDestroy']);
+    Route::post('/media/upload', [\App\Http\Controllers\Api\StorageController::class, 'upload']);
     Route::get('/audit', [AdminController::class, 'audit']);
     Route::view('/glossary', 'admin.glossary');
+    Route::get('/debugger', [DebuggerController::class, 'index']);
+    Route::post('/debugger/run', [DebuggerController::class, 'run']);
     Route::post('/keys/rotate', [AdminController::class, 'rotateKey']);
 });

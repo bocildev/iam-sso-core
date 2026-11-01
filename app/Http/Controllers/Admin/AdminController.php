@@ -11,6 +11,7 @@ use App\Domain\Tenancy\OutboxService;
 use App\Http\Controllers\Controller;
 use App\Models\ApiKey;
 use App\Models\Application;
+use App\Models\MediaAsset;
 use App\Models\Organization;
 use App\Models\OutboxEvent;
 use App\Models\Permission;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
@@ -466,6 +468,45 @@ class AdminController extends Controller
         $this->audit->log('MFA_DISABLED', 'user', $user->id, $user->sub, 'success', 'warning');
 
         return redirect('/admin/security')->with('ok', 'MFA TOTP telah dinonaktifkan.');
+    }
+
+    // ---------- Media Explorer ----------
+    public function media(Request $request)
+    {
+        $query = MediaAsset::with('application')->orderByDesc('id');
+        if ($appId = $request->input('app_id')) {
+            $query->where('application_id', $appId);
+        }
+        if ($folder = $request->input('folder')) {
+            $query->where('folder', $folder);
+        }
+
+        $assets = $query->paginate(24);
+        $apps = Application::orderBy('name')->get();
+        $totalStorageBytes = MediaAsset::sum('file_size');
+        $totalOriginalBytes = MediaAsset::sum('original_size');
+        $savingsBytes = max(0, $totalOriginalBytes - $totalStorageBytes);
+
+        return view('admin.media', [
+            'assets' => $assets,
+            'apps' => $apps,
+            'totalStorageBytes' => $totalStorageBytes,
+            'savingsBytes' => $savingsBytes,
+            'selectedAppId' => $appId,
+            'selectedFolder' => $folder,
+        ]);
+    }
+
+    public function mediaDestroy(int $id)
+    {
+        $asset = MediaAsset::findOrFail($id);
+        if (Storage::disk($asset->disk)->exists($asset->file_path)) {
+            Storage::disk($asset->disk)->delete($asset->file_path);
+        }
+        $asset->delete();
+        $this->audit->log('MEDIA_DELETED', 'media_asset', (string) $id, $asset->application?->slug ?? 'system', 'success', 'warning');
+
+        return back()->with('ok', 'Aset media berhasil dihapus dari storage.');
     }
 
     // ---------- Audit & keys ----------
