@@ -1,7 +1,7 @@
 # CHECKPOINT: IAM-SSO-CORE
 
 > Baca file ini PERTAMA di percakapan baru, lalu lanjutkan dari bagian "Langkah Berikutnya".
-> Terakhir diperbarui: 2026-10-29 (CP-011)
+> Terakhir diperbarui: 2026-11-01 (CP-017 — Production Ecosystem Live)
 
 ## Konteks Singkat
 - **Tujuan**: Core **Identity + SSO (OIDC)** reusable, pusat layanan lintas aplikasi (user, role, permission, app registry, API key, outbox webhook, MFA TOTP, password reset, audit). App lain (Motion Portfolio, Mochi Finance, ToonHub, dll.) menjadi klien. **Core dibangun penuh dulu, penyesuaian client app belakangan.**
@@ -148,7 +148,20 @@
   - **Pengujian Otomatis**:
     - `iam-sso-core`: **43/43 tests lulus (275 assertions)**.
     - `portfolio-admin`: **10/10 tests lulus (35 assertions)**.
-- **Git Remote Synchronization Backoffice Apps (`CP-015`)**:
+- **Production Hosting Live & Domain Subdomain Realignment (`CP-017`)**:
+  - **Status Produksi Ekosistem Multi-Subdomain Live (`cleanly.biz.id` & Vercel)**:
+    - **Pusat Central IAM-SSO-CORE**: `https://auth.cleanly.biz.id` (cPanel NeoHosting, LiteSpeed, PHP 8.3, database `cleanlyb_saas_iam_db`).
+    - **Motion Portfolio CMS Backoffice**: `https://admin-porto.cleanly.biz.id` (cPanel Subdomain, Laravel 11 CMS, database `cleanlyb_portfolio_db`).
+    - **Motion Portfolio Interactive Client**: `https://adamth.vercel.app` (Vercel Cloud Nuxt 3, headless terhubung ke `admin-porto`).
+    - **Mochi Finance Admin Backoffice**: `https://mochi-finance-admin.cleanly.biz.id` (cPanel Subdomain, Laravel 13 SaaS Owner Backoffice, database `cleanlyb_mochi_db`).
+  - **Penyelarasan OIDC Token Issuer (`iss`) & SSO Verification**:
+    - Sinkronisasi nilai `APP_URL=https://auth.cleanly.biz.id` dan `IAM_ISSUER=https://auth.cleanly.biz.id` di seluruh `.env` ekosistem untuk mencegah insiden `Invalid token issuer`.
+    - Sesi SSO lintas-subdomain terverifikasi 100% mulus (*Silent SSO* dan 1-Klik *Masuk Otomatis via Central IAM SSO*).
+  - **Centralized Media & Storage Symlink Engine**:
+    - Mengaktifkan ekstensi `php_fileinfo` dan `gd` pada cPanel PHP 8.3 Selector untuk mendukung validasi MIME type dan kompresi otomatis gambar $\le 500\text{ KB}$.
+    - Pembuatan jembatan storage symlink (`public/storage` $\rightarrow$ `storage/app/public`) berhasil dijalankan via Web Debugger Console (`/admin/debugger`).
+    - Pratinjau aset publik di Vercel (`https://auth.cleanly.biz.id/storage/uploads/portfolio-admin/avatars/...`) ter-load 200 OK.
+
   - `portfolio-admin` dihubungkan dan di-push ke remote `https://github.com/bocildev/portofolio-admin.git` (branch `main`).
   - `mochi-finance-admin` dihubungkan dan di-push ke remote `https://github.com/bocildev/mochi-finance-admin.git` (branch `main`).
   - Identitas commit menggunakan user resmi: `bocildev <athallahrich@gmail.com>`.
