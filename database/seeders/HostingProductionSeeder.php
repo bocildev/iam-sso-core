@@ -48,7 +48,7 @@ class HostingProductionSeeder extends Seeder
 
         $org->users()->syncWithoutDetaching([$admin->id]);
 
-        $rootDomain = env('APP_ROOT_DOMAIN', 'adamath.dev');
+        $rootDomain = env('APP_ROOT_DOMAIN', 'cleanly.biz.id');
 
         // 4. Spesifikasi 4 Aplikasi Ekosistem
         $apps = [
@@ -61,14 +61,18 @@ class HostingProductionSeeder extends Seeder
                 'auth_mode' => 'both',
                 'redirect_uris' => [
                     'http://localhost:3000/auth/callback',
+                    'https://adamth.vercel.app/auth/callback',
                     "https://porto.{$rootDomain}/auth/callback",
                 ],
                 'post_logout_redirect_uris' => [
                     'http://localhost:3000',
+                    'https://adamth.vercel.app',
                     "https://porto.{$rootDomain}",
                 ],
                 'allowed_origins' => [
                     'http://localhost:3000',
+                    'https://adamth.vercel.app',
+                    "https://{$rootDomain}",
                     "https://porto.{$rootDomain}",
                 ],
                 'webhook_url' => null,
@@ -87,17 +91,21 @@ class HostingProductionSeeder extends Seeder
                 'auth_mode' => 'oidc',
                 'redirect_uris' => [
                     'http://portfolio-admin.test:8888/auth/callback',
+                    "https://{$rootDomain}/portfolio-admin/auth/callback",
                     "https://admin-porto.{$rootDomain}/auth/callback",
                 ],
                 'post_logout_redirect_uris' => [
                     'http://portfolio-admin.test:8888',
+                    "https://{$rootDomain}/portfolio-admin",
                     "https://admin-porto.{$rootDomain}",
                 ],
                 'allowed_origins' => [
                     'http://portfolio-admin.test:8888',
+                    'https://adamth.vercel.app',
+                    "https://{$rootDomain}",
                     "https://admin-porto.{$rootDomain}",
                 ],
-                'webhook_url' => "https://admin-porto.{$rootDomain}/api/webhooks/iam",
+                'webhook_url' => "https://{$rootDomain}/portfolio-admin/api/webhooks/iam",
                 'roles' => [
                     'admin' => ['name' => 'Portfolio Platform Admin', 'permissions' => ['portfolio.admin', 'portfolio.read', 'portfolio.write', 'portfolio.publish']],
                     'editor' => ['name' => 'Portfolio Content Editor', 'permissions' => ['portfolio.read', 'portfolio.write']],
@@ -113,17 +121,20 @@ class HostingProductionSeeder extends Seeder
                 'auth_mode' => 'oidc',
                 'redirect_uris' => [
                     'http://localhost:3001/auth/callback',
+                    "https://{$rootDomain}/mochi-finance/auth/callback",
                     "https://mochi.{$rootDomain}/auth/callback",
                 ],
                 'post_logout_redirect_uris' => [
                     'http://localhost:3001',
+                    "https://{$rootDomain}/mochi-finance",
                     "https://mochi.{$rootDomain}",
                 ],
                 'allowed_origins' => [
                     'http://localhost:3001',
+                    "https://{$rootDomain}",
                     "https://mochi.{$rootDomain}",
                 ],
-                'webhook_url' => "https://mochi-admin.{$rootDomain}/api/webhooks/iam",
+                'webhook_url' => "https://{$rootDomain}/mochi-finance-admin/api/webhooks/iam",
                 'roles' => [
                     'admin' => [
                         'name' => 'Mochi Platform Admin',
@@ -166,17 +177,20 @@ class HostingProductionSeeder extends Seeder
                 'auth_mode' => 'oidc',
                 'redirect_uris' => [
                     'http://mochi-finance-admin.test:8888/auth/callback',
+                    "https://{$rootDomain}/mochi-finance-admin/auth/callback",
                     "https://mochi-admin.{$rootDomain}/auth/callback",
                 ],
                 'post_logout_redirect_uris' => [
                     'http://mochi-finance-admin.test:8888',
+                    "https://{$rootDomain}/mochi-finance-admin",
                     "https://mochi-admin.{$rootDomain}",
                 ],
                 'allowed_origins' => [
                     'http://mochi-finance-admin.test:8888',
+                    "https://{$rootDomain}",
                     "https://mochi-admin.{$rootDomain}",
                 ],
-                'webhook_url' => "https://mochi-admin.{$rootDomain}/api/webhooks/iam",
+                'webhook_url' => "https://{$rootDomain}/mochi-finance-admin/api/webhooks/iam",
                 'roles' => [
                     'admin' => [
                         'name' => 'Mochi Platform Admin',
