@@ -60,8 +60,13 @@ class AdminController extends Controller
                 's.ip'
             )
             ->orderByDesc('ort.created_at')
-            ->limit(15)
-            ->get();
+            ->paginate(5, ['*'], 'sessions_page');
+
+        $totalAppSessions = DB::table('oauth_refresh_tokens')
+            ->whereNull('revoked_at')
+            ->whereNull('used_at')
+            ->where('expires_at', '>', now())
+            ->count();
 
         return view('admin.dashboard', [
             'apps' => Application::count(),
@@ -69,11 +74,78 @@ class AdminController extends Controller
             'orgs' => Organization::count(),
             'sessions' => DB::table('sso_sessions')->whereNull('revoked_at')->where('expires_at', '>', now())->count(),
             'clientAppSessions' => $clientAppSessions,
+            'totalAppSessions' => $totalAppSessions,
             'failed' => DB::table('audit_logs')->where('action', 'FAILED_LOGIN')->where('created_at', '>', now()->subDay())->count(),
             'outboxPending' => OutboxEvent::where('status', 'pending')->count(),
             'recentLogs' => DB::table('audit_logs')->orderByDesc('id')->limit(6)->get(),
             'activeKey' => SigningKey::where('active', true)->latest('id')->first(),
         ]);
+    }
+
+    public function sessions(Request $r)
+    {
+        $search = trim((string) $r->query('q', ''));
+        $appFilter = trim((string) $r->query('app', ''));
+
+        $query = DB::table('oauth_refresh_tokens as ort')
+            ->join('applications as a', 'a.id', '=', 'ort.application_id')
+            ->join('users as u', 'u.id', '=', 'ort.user_id')
+            ->leftJoin('sso_sessions as s', 's.id', '=', 'ort.sso_session_id')
+            ->whereNull('ort.revoked_at')
+            ->whereNull('ort.used_at')
+            ->where('ort.expires_at', '>', now())
+            ->select(
+                'ort.token_hash',
+                'ort.sso_session_id',
+                'ort.application_id',
+                'ort.created_at as issued_at',
+                'ort.expires_at',
+                'a.id as app_id',
+                'a.name as app_name',
+                'a.slug as app_slug',
+                'a.client_id',
+                'a.category as app_category',
+                'u.name as user_name',
+                'u.email as user_email',
+                'u.sub as user_sub',
+                's.ip',
+                's.user_agent'
+            );
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('u.name', 'like', "%{$search}%")
+                    ->orWhere('u.email', 'like', "%{$search}%")
+                    ->orWhere('u.sub', 'like', "%{$search}%")
+                    ->orWhere('a.name', 'like', "%{$search}%")
+                    ->orWhere('a.client_id', 'like', "%{$search}%")
+                    ->orWhere('s.ip', 'like', "%{$search}%");
+            });
+        }
+
+        if ($appFilter !== '') {
+            $query->where('a.slug', $appFilter);
+        }
+
+        $allSessions = $query->orderByDesc('ort.created_at')->get();
+        $grouped = $allSessions->groupBy('app_id');
+
+        $totalActiveSessions = $allSessions->count();
+        $totalConnectedApps = $grouped->count();
+        $totalUniqueUsers = $allSessions->pluck('user_sub')->unique()->count();
+
+        $appsList = Application::orderBy('name')->get();
+
+        return view('admin.sessions', compact(
+            'grouped',
+            'allSessions',
+            'totalActiveSessions',
+            'totalConnectedApps',
+            'totalUniqueUsers',
+            'appsList',
+            'search',
+            'appFilter'
+        ));
     }
 
     public function revokeClientAppSession(Request $r)
@@ -95,6 +167,40 @@ class AdminController extends Controller
         ]);
 
         return back()->with('ok', 'Sesi aplikasi '.($app?->name ?? 'Client App').' berhasil dicabut.');
+    }
+
+    public function revokeAppSessionsByApp(Request $r)
+    {
+        $data = $r->validate([
+            'application_id' => ['required', 'integer'],
+        ]);
+
+        $app = Application::findOrFail($data['application_id']);
+        $count = DB::table('oauth_refresh_tokens')
+            ->where('application_id', $app->id)
+            ->whereNull('revoked_at')
+            ->where('expires_at', '>', now())
+            ->update(['revoked_at' => now()]);
+
+        $this->audit->log('APP_ALL_SESSIONS_REVOKED', 'user', $r->user()->id, $app->slug, 'success', 'warning', [
+            'count' => $count,
+        ]);
+
+        return back()->with('ok', "Sebanyak {$count} sesi aktif pada aplikasi {$app->name} berhasil dicabut.");
+    }
+
+    public function revokeAllClientAppSessions(Request $r)
+    {
+        $count = DB::table('oauth_refresh_tokens')
+            ->whereNull('revoked_at')
+            ->where('expires_at', '>', now())
+            ->update(['revoked_at' => now()]);
+
+        $this->audit->log('ALL_CLIENT_SESSIONS_REVOKED', 'user', $r->user()->id, 'all_apps', 'success', 'danger', [
+            'count' => $count,
+        ]);
+
+        return back()->with('ok', "Seluruh ({$count}) sesi aplikasi klien di ekosistem berhasil dicabut.");
     }
 
     // ---------- Applications ----------
@@ -193,6 +299,22 @@ class AdminController extends Controller
         $this->audit->log('APP_UPDATED', 'user', $r->user()->id, $app->slug);
 
         return back()->with('ok', 'Aplikasi diperbarui.');
+    }
+
+    public function appDestroy(Request $r, Application $app)
+    {
+        $appName = $app->name;
+        $appSlug = $app->slug;
+
+        DB::transaction(function () use ($app) {
+            $app->delete();
+        });
+
+        $this->audit->log('APP_DELETED', 'user', $r->user()->id, $appSlug, 'success', 'danger', [
+            'name' => $appName,
+        ]);
+
+        return redirect('/admin/apps')->with('ok', "Aplikasi {$appName} ({$appSlug}) berhasil dihapus beserta seluruh izin dan kuncinya.");
     }
 
     public function appRotateSecret(Request $r, Application $app)
@@ -339,6 +461,36 @@ class AdminController extends Controller
         return back()->with('ok', 'User diperbarui.');
     }
 
+    public function userDestroy(Request $r, User $user)
+    {
+        if ($user->id === $r->user()->id) {
+            return back()->withErrors(['status' => 'Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif digunakan.']);
+        }
+
+        if ($user->is_super_admin && User::where('is_super_admin', true)->where('status', 'active')->count() <= 1) {
+            return back()->withErrors(['status' => 'Tidak bisa menghapus super admin aktif terakhir pada sistem IAM.']);
+        }
+
+        $userName = $user->name;
+        $userEmail = $user->email;
+        $userSub = $user->sub;
+
+        // Cabut semua sesi dan publish event outbox sebelum data user dihapus
+        $this->sessions->terminateAllForUser($user, 'user_deleted');
+        $this->outbox->publishForUser($user, 'user.deleted', ['email' => $userEmail]);
+
+        DB::transaction(function () use ($user) {
+            $user->delete();
+        });
+
+        $this->audit->log('USER_DELETED', 'user', $r->user()->id, $userSub, 'success', 'danger', [
+            'email' => $userEmail,
+            'name' => $userName,
+        ]);
+
+        return redirect('/admin/users')->with('ok', "Pengguna {$userName} ({$userEmail}) berhasil dihapus permanen dari IAM.");
+    }
+
     public function userResetMfa(Request $r, User $user)
     {
         $user->forceFill([
@@ -358,6 +510,20 @@ class AdminController extends Controller
         $this->audit->log('ORG_CREATED', 'user', $r->user()->id, $d['slug']);
 
         return back()->with('ok', 'Organisasi dibuat.');
+    }
+
+    public function orgDestroy(Request $r, Organization $org)
+    {
+        $orgName = $org->name;
+        $orgSlug = $org->slug;
+
+        $org->delete();
+
+        $this->audit->log('ORG_DELETED', 'user', $r->user()->id, $orgSlug, 'success', 'warning', [
+            'name' => $orgName,
+        ]);
+
+        return redirect('/admin/users')->with('ok', "Organisasi {$orgName} ({$orgSlug}) berhasil dihapus.");
     }
 
     // ---------- Security & MFA ----------

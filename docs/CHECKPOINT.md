@@ -1,7 +1,7 @@
 # CHECKPOINT: IAM-SSO-CORE
 
 > Baca file ini PERTAMA di percakapan baru, lalu lanjutkan dari bagian "Langkah Berikutnya".
-> Terakhir diperbarui: 2026-11-01 (CP-018 — Freemium SaaS Logic & Smart Sync 2 Wallets)
+> Terakhir diperbarui: 2026-11-02 (CP-019 — Delete Features & Active Sessions TreeTable Management)
 
 ## Konteks Singkat
 - **Tujuan**: Core **Identity + SSO (OIDC)** reusable, pusat layanan lintas aplikasi (user, role, permission, app registry, API key, outbox webhook, MFA TOTP, password reset, audit). App lain (Motion Portfolio, Mochi Finance, ToonHub, dll.) menjadi klien. **Core dibangun penuh dulu, penyesuaian client app belakangan.**
@@ -17,13 +17,15 @@
 4. Jangan tulis secret ke repo/docs. `.env` ter-ignore git.
 5. Terminologi: `application` = app klien; `organization` = tenant pelanggan (hindari kata "tenant" ambigu).
 
-## Status Terkini (CP-018 — Freemium SaaS Logic & Smart Sync 2 Wallets, 50/50 Core Tests Lulus, 7/7 Mochi Admin Tests Lulus)
-- **Mochi Finance SaaS Logic**:
-  * Free Starter / Trial: Maksimal 2 dompet aktif, durasi masa trial 14 hari sejak pendaftaran.
-  * Cloud Sync: User Free/Trial diizinkan sinkronisasi dompet & riwayat transaksi ke Cloud (maks 2 dompet).
-  * Lock 5 Fitur Pro: `inbox` (Smart Inbox), `budgets` (Anggaran Bulanan), `analytics` (Grafik & Analitik), `goals` (Celengan Impian), `recurring` (Tagihan Rutin) digembok 🔒 dan dilindungi `<CommonProFeatureGate>`.
-  * Pembatasan Trial: Jika masa trial 14 hari habis, transaksi baru dikunci dan muncul ajakan upgrade ke Mochi Pro ✨.
-  * Smart Bi-directional Sync: Auto-pull data cloud jika ada, atau auto-push data lokal jika cloud masih kosong. Real-time counter dihitung langsung dari data fisik DB.
+## Status Terkini (CP-019 — Delete Features across Ecosystem & Active Sessions TreeTable, 53/53 Core Tests Lulus, 9/9 Mochi Admin Tests Lulus)
+- **Active Sessions Management (`iam-sso-core`)**:
+  * Dashboard (`/admin`): Sesi aktif aplikasi sekarang dibatasi 5 per halaman dengan pagination links (`sessions_page`) + tombol tautan langsung ke TreeTable.
+  * TreeTable Explorer (`/admin/sessions`): Tampilan hierarki terkelompok berdasarkan aplikasi (`groupBy('app_id')`), expand/collapse toggle, pencarian multi-field, filter aplikasi, tombol bulk revoke per aplikasi, dan tombol darurat revoke seluruh sesi ekosistem.
+  * Navigasi Sidebar: Ditambahkan menu `Sesi Aktif` dengan ikon jam lingkaran.
+- **Fitur Delete di Seluruh Ekosistem**:
+  * `iam-sso-core`: Hapus aplikasi klien (`DELETE /admin/apps/{app}`), hapus user (`DELETE /admin/users/{user}`), dan hapus organisasi (`DELETE /admin/orgs/{org}`) lengkap dengan proteksi self-delete & last active super admin.
+  * `mochi-finance-admin`: Hapus klien (`DELETE /clients/{sub}`) yang membersihkan seluruh brankas cloud (dompet, transaksi, celengan, anggaran, tagihan, inbox) lengkap dengan proteksi Platform Owner, serta hapus riwayat pengajuan upgrade (`DELETE /upgrades/{id}`).
+  * `management-keuangan` (PWA Nuxt): Hapus permanen notifikasi inbox (`financeStore.deleteInboxItem(id)`) di tab antrean maupun riwayat yang disetujui/diabaikan.
 
 1. **Skema DB (3 migrasi)**:
    - `2026_10_25_000001_create_iam_core_tables`: `users` (+`sub`, `status`, `is_super_admin`), `organizations`, `organization_user`, `applications`, `permissions`, `roles`, `role_permissions`, `user_roles`, `user_applications`, `sso_sessions`, `oauth_authorization_codes`, `oauth_refresh_tokens`, `signing_keys`, `api_keys`, `audit_logs`.

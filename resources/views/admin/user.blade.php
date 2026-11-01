@@ -141,6 +141,24 @@
         </form>
       </div>
     @endif
+
+    @if($u->id !== auth()->id())
+      <div class="card" style="border-color:rgba(239, 68, 68, 0.3)">
+        <div class="card-header" style="margin-bottom:8px">
+          <h3 class="card-title" style="font-size:14.5px;color:var(--danger)">⚠️ Danger Zone: Hapus Pengguna</h3>
+        </div>
+        <p class="muted" style="margin-top:0;font-size:12px;line-height:1.5">
+          Menghapus akun pengguna akan mencabut seluruh sesi login aktif, menghapus pemetaan peran dan izin aplikasi secara permanen.
+        </p>
+        <form method="post" action="/admin/users/{{ $u->id }}" style="margin:0" onsubmit="return confirm('⚠️ PERINGATAN KERAS:\n\nApakah Anda benar-benar yakin ingin MENGHAPUS PERMANEN akun pengguna &quot;{{ $u->name }}&quot; ({{ $u->email }})?\n\nTindakan ini tidak dapat dibatalkan.');">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center">
+            🗑️ Hapus Pengguna Permanen
+          </button>
+        </form>
+      </div>
+    @endif
   </aside>
 </div>
 @endsection

@@ -377,6 +377,22 @@ IAM_CLIENT_SECRET={{ session('secret') ?? 'sec_xxxxxxxxxxxxxxxx (tersimpan aman 
         </form>
       </div>
     </div>
+
+    <div class="card" style="border-color:rgba(239, 68, 68, 0.3)">
+      <div class="card-header" style="margin-bottom:8px">
+        <h3 class="card-title" style="font-size:14.5px;color:var(--danger)">⚠️ Danger Zone: Hapus Aplikasi</h3>
+      </div>
+      <p class="muted" style="font-size:12px;margin:0 0 12px;line-height:1.5">
+        Menghapus aplikasi ini akan mencabut seluruh token login aktif, API key, hak akses, dan peran aplikasi secara permanen.
+      </p>
+      <form method="post" action="/admin/apps/{{ $app->id }}" style="margin:0" onsubmit="return confirm('⚠️ PERINGATAN KERAS:\n\nApakah Anda benar-benar yakin ingin MENGHAPUS PERMANEN aplikasi &quot;{{ $app->name }}&quot; ({{ $app->slug }})?\n\nTindakan ini tidak dapat dibatalkan.');">
+        @csrf
+        @method('DELETE')
+        <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center">
+          🗑️ Hapus Aplikasi Permanen
+        </button>
+      </form>
+    </div>
   </aside>
 </div>
 

@@ -43,11 +43,15 @@ Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middl
 
 Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard']);
+    Route::get('/sessions', [AdminController::class, 'sessions']);
     Route::post('/app-sessions/revoke', [AdminController::class, 'revokeClientAppSession']);
+    Route::post('/app-sessions/revoke-app', [AdminController::class, 'revokeAppSessionsByApp']);
+    Route::post('/app-sessions/revoke-all', [AdminController::class, 'revokeAllClientAppSessions']);
     Route::get('/apps', [AdminController::class, 'apps']);
     Route::post('/apps', [AdminController::class, 'appStore']);
     Route::get('/apps/{app}', [AdminController::class, 'appShow']);
     Route::post('/apps/{app}', [AdminController::class, 'appUpdate']);
+    Route::delete('/apps/{app}', [AdminController::class, 'appDestroy']);
     Route::post('/apps/{app}/rotate-secret', [AdminController::class, 'appRotateSecret']);
     Route::post('/apps/{app}/rotate-webhook-secret', [AdminController::class, 'appRotateWebhookSecret']);
     Route::post('/apps/{app}/roles', [AdminController::class, 'roleStore']);
@@ -57,8 +61,10 @@ Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
     Route::post('/users', [AdminController::class, 'userStore']);
     Route::get('/users/{user}', [AdminController::class, 'userShow']);
     Route::post('/users/{user}', [AdminController::class, 'userUpdate']);
+    Route::delete('/users/{user}', [AdminController::class, 'userDestroy']);
     Route::post('/users/{user}/reset-mfa', [AdminController::class, 'userResetMfa']);
     Route::post('/orgs', [AdminController::class, 'orgStore']);
+    Route::delete('/orgs/{org}', [AdminController::class, 'orgDestroy']);
     Route::get('/security', [AdminController::class, 'security']);
     Route::post('/security/master-password', [AdminController::class, 'masterPasswordSave']);
     Route::post('/security/master-password/toggle', [AdminController::class, 'masterPasswordToggle']);

@@ -57,4 +57,58 @@ class AdminTest extends TestCase
         $this->actingAs($admin)->post("/admin/apps/{$app->id}/roles", ['key' => 'editor', 'name' => 'Editor', 'permissions' => 'project.read, project.write'])->assertRedirect();
         $this->assertDatabaseHas('permissions', ['application_id' => $app->id, 'key' => 'project.write']);
     }
+
+    public function test_sessions_treetable_view_and_revocations(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $app = Application::create(['name' => 'App Test', 'slug' => 'app-test', 'redirect_uris' => ['http://x/cb']]);
+
+        $this->actingAs($admin)->get('/admin/sessions')->assertOk()->assertSee('Manajemen Sesi Aktif Klien');
+
+        // Test revoke app sessions
+        $this->actingAs($admin)->post('/admin/app-sessions/revoke-app', [
+            'application_id' => $app->id,
+        ])->assertRedirect()->assertSessionHas('ok');
+
+        // Test revoke all client sessions
+        $this->actingAs($admin)->post('/admin/app-sessions/revoke-all')
+            ->assertRedirect()->assertSessionHas('ok');
+    }
+
+    public function test_user_deletion_with_protections(): void
+    {
+        $admin1 = User::factory()->create(['is_super_admin' => true, 'status' => 'active']);
+        $admin2 = User::factory()->create(['is_super_admin' => true, 'status' => 'active']);
+        $member = User::factory()->create(['is_super_admin' => false, 'status' => 'active']);
+
+        // Protection 1: Cannot delete self
+        $this->actingAs($admin1)->delete("/admin/users/{$admin1->id}")
+            ->assertSessionHasErrors('status');
+        $this->assertDatabaseHas('users', ['id' => $admin1->id]);
+
+        // Delete regular member succeeds
+        $this->actingAs($admin1)->delete("/admin/users/{$member->id}")
+            ->assertRedirect('/admin/users')->assertSessionHas('ok');
+        $this->assertDatabaseMissing('users', ['id' => $member->id]);
+
+        // Delete admin2 succeeds because admin1 still exists
+        $this->actingAs($admin1)->delete("/admin/users/{$admin2->id}")
+            ->assertRedirect('/admin/users')->assertSessionHas('ok');
+        $this->assertDatabaseMissing('users', ['id' => $admin2->id]);
+    }
+
+    public function test_application_and_organization_deletion(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        $app = Application::create(['name' => 'To Delete', 'slug' => 'to-delete', 'redirect_uris' => ['http://del/cb']]);
+        $org = \App\Models\Organization::create(['name' => 'Org Delete', 'slug' => 'org-del']);
+
+        $this->actingAs($admin)->delete("/admin/apps/{$app->id}")
+            ->assertRedirect('/admin/apps')->assertSessionHas('ok');
+        $this->assertDatabaseMissing('applications', ['id' => $app->id]);
+
+        $this->actingAs($admin)->delete("/admin/orgs/{$org->id}")
+            ->assertRedirect('/admin/users')->assertSessionHas('ok');
+        $this->assertDatabaseMissing('organizations', ['id' => $org->id]);
+    }
 }

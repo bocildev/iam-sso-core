@@ -62,14 +62,20 @@
     </div>
 
     <div class="card">
-      <div class="card-header">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
           <h2 class="card-title">Sesi Aktif per Aplikasi Klien (App-Scoped Sessions)</h2>
           <p class="muted" style="margin:4px 0 0;font-size:12.5px">
             Daftar sesi login yang sedang aktif di masing-masing aplikasi klien. Mencabut sesi di bawah ini hanya mengeluarkan user dari aplikasi terkait tanpa mematikan sesi induk IAM.
           </p>
         </div>
-        <x-badge variant="info">{{ count($clientAppSessions ?? []) }} Sesi Aplikasi</x-badge>
+        <div style="display:flex;align-items:center;gap:10px">
+          <x-badge variant="info">{{ $totalAppSessions ?? (method_exists($clientAppSessions, 'total') ? $clientAppSessions->total() : count($clientAppSessions ?? [])) }} Sesi Aplikasi</x-badge>
+          <a href="/admin/sessions" class="btn btn-sm btn-ghost" style="border:1px solid var(--border);display:inline-flex;align-items:center;gap:6px">
+            <span>Lihat TreeTable Keseluruhan</span>
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -98,7 +104,7 @@
                 <td class="muted">{{ $cs->issued_at }}</td>
                 <td class="muted">{{ $cs->ip ?: '-' }}</td>
                 <td>
-                  <form method="post" action="/admin/app-sessions/revoke" style="margin:0">
+                  <form method="post" action="/admin/app-sessions/revoke" style="margin:0" onsubmit="return confirm('Putus sesi aplikasi untuk user ini?');">
                     @csrf
                     <input type="hidden" name="sso_session_id" value="{{ $cs->sso_session_id }}">
                     <input type="hidden" name="application_id" value="{{ $cs->application_id }}">
@@ -114,6 +120,11 @@
           </tbody>
         </table>
       </div>
+      @if(method_exists($clientAppSessions, 'hasPages') && $clientAppSessions->hasPages())
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+          {{ $clientAppSessions->appends(request()->except('sessions_page'))->links() }}
+        </div>
+      @endif
     </div>
 
     @if(!empty($recentLogs) && count($recentLogs))

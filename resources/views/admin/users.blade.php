@@ -50,7 +50,18 @@
                   @endif
                 </td>
                 <td style="text-align:right">
-                  <a href="/admin/users/{{ $u->id }}" class="btn btn-sm btn-ghost">Kelola</a>
+                  <div style="display:inline-flex;align-items:center;gap:6px">
+                    <a href="/admin/users/{{ $u->id }}" class="btn btn-sm btn-ghost">Kelola</a>
+                    @if($u->id !== auth()->id())
+                      <form method="post" action="/admin/users/{{ $u->id }}" style="margin:0;display:inline" onsubmit="return confirm('⚠️ PERINGATAN:\n\nApakah Anda yakin ingin MENGHAPUS pengguna &quot;{{ $u->name }}&quot; ({{ $u->email }})?\n\nSeluruh sesi login, hak akses aplikasi, dan peran pengguna ini akan dicabut permanen.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-danger" title="Hapus User" style="padding:4px 8px;display:inline-flex;align-items:center">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                      </form>
+                    @endif
+                  </div>
                 </td>
               </tr>
             @endforeach
@@ -106,9 +117,21 @@
       <p class="muted" style="margin-top:0;font-size:12.5px">
         Organisasi memetakan klaim <code>tenant_id</code> pada token OIDC ketika user mengakses aplikasi tertentu.
       </p>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
         @forelse($orgs as $o)
-          <x-badge variant="neutral" :dot="false">{{ $o->name }} ({{ $o->slug }})</x-badge>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:6px;background:var(--bg-subtle);border:1px solid var(--border)">
+            <div>
+              <span style="font-weight:600;font-size:13px">{{ $o->name }}</span>
+              <span class="muted" style="font-size:11px;font-family:var(--font-mono);margin-left:4px">({{ $o->slug }})</span>
+            </div>
+            <form method="post" action="/admin/orgs/{{ $o->id }}" style="margin:0" onsubmit="return confirm('Hapus organisasi &quot;{{ $o->name }}&quot;?');">
+              @csrf
+              @method('DELETE')
+              <button type="submit" class="btn btn-sm btn-ghost" style="color:var(--danger);padding:2px 6px" title="Hapus Organisasi">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </form>
+          </div>
         @empty
           <span class="muted" style="font-size:12px">Belum ada organisasi terdaftar.</span>
         @endforelse
