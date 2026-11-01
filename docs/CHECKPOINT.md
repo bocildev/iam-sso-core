@@ -191,9 +191,12 @@
   - **Pengujian Otomatis**:
     - `iam-sso-core`: **50/50 tests lulus (300 assertions)**.
     - `portfolio-admin`: **10/10 tests lulus (35 assertions)**.
-    - `mochi-finance-admin`: **7/7 tests lulus (36 assertions)**.
+    - `mochi-finance-admin`: **8/8 tests lulus (39 assertions)**.
     - `portofolio-motion`: **Nuxt 3 production build 100% sukses**.
 - **Mochi Finance SaaS Freemium Logic & Smart Bi-directional Sync (`CP-018` & `CP-019`)**:
+  - **Resolusi OIDC Audience Token & Anti-Looping SSO**:
+    - Memperbaiki validasi JWT di `IamSsoService.php`: kini secara resmi mengizinkan audiens token `app_mochi_finance` (klien PWA) selain `app_mochi_finance_admin`, sehingga request sinkronisasi `/api/v1/sync/pull` tidak lagi ditolak dengan 401 `Invalid token audience`.
+    - Mengamankan `isSessionActiveInIam()` dari loopback timeout/network hiccup cPanel agar sesi pengguna tidak ter-logout seketika ke `/auth/callback`.
   - **SaaS Freemium & Trial Business Logic**:
     - Free Starter kini bertindak sebagai Free Trial 14 hari dengan kuota maksimal 2 dompet fisik yang terhubung ke cloud.
     - Fitur eksklusif Mochi PRO (Inbox Approval, Anggaran Bulanan, Grafik & Analitik, Celengan Impian, Tagihan Rutin) dilindungi dengan badge 🔒 dan modal interaktif Kawaii Upgrade Gate.
