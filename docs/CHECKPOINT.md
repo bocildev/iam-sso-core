@@ -1,7 +1,7 @@
 # CHECKPOINT: IAM-SSO-CORE
 
 > Baca file ini PERTAMA di percakapan baru, lalu lanjutkan dari bagian "Langkah Berikutnya".
-> Terakhir diperbarui: 2026-11-01 (CP-017 — Production Ecosystem Live)
+> Terakhir diperbarui: 2026-11-01 (CP-018 — Freemium SaaS Logic & Smart Sync 2 Wallets)
 
 ## Konteks Singkat
 - **Tujuan**: Core **Identity + SSO (OIDC)** reusable, pusat layanan lintas aplikasi (user, role, permission, app registry, API key, outbox webhook, MFA TOTP, password reset, audit). App lain (Motion Portfolio, Mochi Finance, ToonHub, dll.) menjadi klien. **Core dibangun penuh dulu, penyesuaian client app belakangan.**
@@ -17,7 +17,14 @@
 4. Jangan tulis secret ke repo/docs. `.env` ter-ignore git.
 5. Terminologi: `application` = app klien; `organization` = tenant pelanggan (hindari kata "tenant" ambigu).
 
-## Status Terkini (CP-003 — Core 100% Selesai + UI/UX Pro Max Console, Test 27/27 Lulus)
+## Status Terkini (CP-018 — Freemium SaaS Logic & Smart Sync 2 Wallets, 50/50 Core Tests Lulus, 7/7 Mochi Admin Tests Lulus)
+- **Mochi Finance SaaS Logic**:
+  * Free Starter / Trial: Maksimal 2 dompet aktif, durasi masa trial 14 hari sejak pendaftaran.
+  * Cloud Sync: User Free/Trial diizinkan sinkronisasi dompet & riwayat transaksi ke Cloud (maks 2 dompet).
+  * Lock 5 Fitur Pro: `inbox` (Smart Inbox), `budgets` (Anggaran Bulanan), `analytics` (Grafik & Analitik), `goals` (Celengan Impian), `recurring` (Tagihan Rutin) digembok 🔒 dan dilindungi `<CommonProFeatureGate>`.
+  * Pembatasan Trial: Jika masa trial 14 hari habis, transaksi baru dikunci dan muncul ajakan upgrade ke Mochi Pro ✨.
+  * Smart Bi-directional Sync: Auto-pull data cloud jika ada, atau auto-push data lokal jika cloud masih kosong. Real-time counter dihitung langsung dari data fisik DB.
+
 1. **Skema DB (3 migrasi)**:
    - `2026_10_25_000001_create_iam_core_tables`: `users` (+`sub`, `status`, `is_super_admin`), `organizations`, `organization_user`, `applications`, `permissions`, `roles`, `role_permissions`, `user_roles`, `user_applications`, `sso_sessions`, `oauth_authorization_codes`, `oauth_refresh_tokens`, `signing_keys`, `api_keys`, `audit_logs`.
    - `2026_10_25_000002_add_webhooks_and_outbox`: tambah `webhook_url`, `webhook_secret_encrypted`, `allowed_origins` pada `applications`, serta tabel `outbox_events`.
