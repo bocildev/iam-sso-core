@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->validateCsrfTokens(except: [
+            'auth/google/callback',
+        ]);
         $middleware->alias([
             'iam.admin' => \App\Http\Middleware\EnsureIamAdmin::class,
             'iam.apikey' => \App\Http\Middleware\ApiKeyAuth::class,

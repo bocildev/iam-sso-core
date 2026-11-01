@@ -71,6 +71,13 @@ class ProviderController extends Controller
             return $this->authzError($e);
         }
 
+        if ($app->isPublicNoAuth()) {
+            return response()->view('oidc.denied', [
+                'app' => $app,
+                'message' => 'Aplikasi ini berkategori Showcase / Portofolio Tanpa Login dan tidak membutuhkan autentikasi pengguna.',
+            ], 400);
+        }
+
         $session = $this->sessions->current($request);
         $prompt = (string) $request->query('prompt', '');
 
@@ -304,7 +311,7 @@ class ProviderController extends Controller
             'application_id' => $app->id,
         ]);
 
-        if ($app->slug === 'mochi-finance') {
+        if ($app->slug === 'mochi-finance' || $app->slug === 'mochi-finance-admin') {
             $hasRole = DB::table('user_roles')
                 ->join('roles', 'roles.id', '=', 'user_roles.role_id')
                 ->where('user_roles.user_id', $user->id)
@@ -313,14 +320,48 @@ class ProviderController extends Controller
 
             if (! $hasRole) {
                 $isOwner = $user->is_super_admin || in_array(strtolower($user->email), ['admin@iam-sso.local', 'athallahrich@gmail.com'], true);
-                $roleKey = $isOwner ? 'admin' : 'free_user';
-                $role = Role::where('application_id', $app->id)->where('key', $roleKey)->first();
-                if ($role) {
-                    DB::table('user_roles')->updateOrInsert([
-                        'user_id' => $user->id,
-                        'role_id' => $role->id,
-                        'organization_id' => null,
-                    ]);
+                $roleKey = $app->slug === 'mochi-finance-admin'
+                    ? ($isOwner ? 'admin' : null)
+                    : ($isOwner ? 'admin' : 'free_user');
+
+                if ($roleKey) {
+                    $role = Role::where('application_id', $app->id)->where('key', $roleKey)->first();
+                    if ($role) {
+                        DB::table('user_roles')->updateOrInsert([
+                            'user_id' => $user->id,
+                            'role_id' => $role->id,
+                            'organization_id' => null,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        if ($app->slug === 'portfolio-admin' || $app->slug === 'motion-portfolio') {
+            $hasRole = DB::table('user_roles')
+                ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('user_roles.user_id', $user->id)
+                ->where('roles.application_id', $app->id)
+                ->exists();
+
+            if (! $hasRole) {
+                $isOwner = $user->is_super_admin || in_array(strtolower($user->email), ['admin@iam-sso.local', 'athallahrich@gmail.com'], true);
+                $roleKey = $app->slug === 'portfolio-admin'
+                    ? ($isOwner ? 'admin' : null)
+                    : ($isOwner ? 'admin' : 'viewer');
+
+                if ($roleKey) {
+                    $role = Role::where('application_id', $app->id)->where('key', $roleKey)->first();
+                    if (! $role && $app->slug === 'motion-portfolio') {
+                        $role = Role::where('application_id', $app->id)->where('key', 'viewer')->first();
+                    }
+                    if ($role) {
+                        DB::table('user_roles')->updateOrInsert([
+                            'user_id' => $user->id,
+                            'role_id' => $role->id,
+                            'organization_id' => null,
+                        ]);
+                    }
                 }
             }
         }

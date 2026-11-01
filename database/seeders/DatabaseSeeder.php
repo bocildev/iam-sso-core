@@ -39,21 +39,44 @@ class DatabaseSeeder extends Seeder
         $apps = [
             [
                 'slug' => 'motion-portfolio',
-                'name' => 'Motion Portfolio',
+                'name' => 'Motion Portfolio (Client App)',
                 'client_id' => 'APP-0001',
+                'category' => 'public_no_auth',
+                'allow_google_login' => false,
                 'auth_mode' => 'both',
+                'redirect_uris' => [
+                    'http://localhost:3000/auth/callback',
+                    'http://localhost:3000/callback',
+                ],
+                'post_logout_redirect_uris' => [
+                    'http://localhost:3000',
+                ],
+                'allowed_origins' => [
+                    'http://localhost:3000',
+                ],
+                'webhook_url' => null,
+                'roles' => [
+                    'admin' => ['name' => 'Portfolio Admin', 'permissions' => ['portfolio.read', 'portfolio.write', 'portfolio.publish']],
+                    'viewer' => ['name' => 'Portfolio Viewer', 'permissions' => ['portfolio.read']],
+                ],
+                'assign_role' => 'admin',
+            ],
+            [
+                'slug' => 'portfolio-admin',
+                'name' => 'Motion Portfolio Admin (Backoffice)',
+                'client_id' => 'app_portfolio_admin',
+                'category' => 'internal_admin',
+                'allow_google_login' => false,
+                'auth_mode' => 'oidc',
                 'redirect_uris' => [
                     'http://portfolio-admin.test:8888/auth/callback',
                     'http://localhost:8002/auth/callback',
-                    'http://localhost:3000/auth/callback',
-                    'http://localhost:3000/callback',
                 ],
                 'post_logout_redirect_uris' => [
                     'http://portfolio-admin.test:8888',
                     'http://portfolio-admin.test:8888/login',
                     'http://localhost:8002',
                     'http://localhost:8002/login',
-                    'http://localhost:3000',
                 ],
                 'allowed_origins' => [
                     'http://portfolio-admin.test:8888',
@@ -62,33 +85,27 @@ class DatabaseSeeder extends Seeder
                 ],
                 'webhook_url' => 'http://portfolio-admin.test:8888/api/webhooks/iam',
                 'roles' => [
-                    'admin' => ['name' => 'Portfolio Admin', 'permissions' => ['portfolio.read', 'portfolio.write', 'portfolio.publish']],
-                    'viewer' => ['name' => 'Portfolio Viewer', 'permissions' => ['portfolio.read']],
+                    'admin' => ['name' => 'Portfolio Platform Admin', 'permissions' => ['portfolio.admin', 'portfolio.read', 'portfolio.write', 'portfolio.publish']],
+                    'editor' => ['name' => 'Portfolio Content Editor', 'permissions' => ['portfolio.read', 'portfolio.write']],
                 ],
                 'assign_role' => 'admin',
             ],
             [
                 'slug' => 'mochi-finance',
-                'name' => 'Mochi Finance',
+                'name' => 'Mochi Finance (Client App)',
                 'client_id' => 'app_mochi_finance',
+                'category' => 'public_auth',
+                'allow_google_login' => true,
                 'auth_mode' => 'oidc',
                 'redirect_uris' => [
-                    'http://mochi-finance-admin.test:8888/auth/callback',
-                    'http://localhost:8001/auth/callback',
                     'http://localhost:3001/auth/callback',
                     'http://localhost:3000/auth/callback',
                 ],
                 'post_logout_redirect_uris' => [
-                    'http://mochi-finance-admin.test:8888',
-                    'http://mochi-finance-admin.test:8888/login',
-                    'http://localhost:8001',
-                    'http://localhost:8001/login',
                     'http://localhost:3001',
                     'http://localhost:3000',
                 ],
                 'allowed_origins' => [
-                    'http://mochi-finance-admin.test:8888',
-                    'http://localhost:8001',
                     'http://localhost:3001',
                     'http://localhost:3000',
                 ],
@@ -126,6 +143,44 @@ class DatabaseSeeder extends Seeder
                 ],
                 'assign_role' => 'admin',
             ],
+            [
+                'slug' => 'mochi-finance-admin',
+                'name' => 'Mochi Finance Admin (Backoffice)',
+                'client_id' => 'app_mochi_finance_admin',
+                'category' => 'internal_admin',
+                'allow_google_login' => false,
+                'auth_mode' => 'oidc',
+                'redirect_uris' => [
+                    'http://mochi-finance-admin.test:8888/auth/callback',
+                    'http://localhost:8001/auth/callback',
+                ],
+                'post_logout_redirect_uris' => [
+                    'http://mochi-finance-admin.test:8888',
+                    'http://mochi-finance-admin.test:8888/login',
+                    'http://localhost:8001',
+                    'http://localhost:8001/login',
+                ],
+                'allowed_origins' => [
+                    'http://mochi-finance-admin.test:8888',
+                    'http://localhost:8001',
+                ],
+                'webhook_url' => 'http://mochi-finance-admin.test:8888/api/webhooks/iam',
+                'roles' => [
+                    'admin' => [
+                        'name' => 'Mochi Platform Admin',
+                        'permissions' => [
+                            'finance.admin',
+                            'finance.basic',
+                            'finance.sync',
+                            'finance.smart_inbox',
+                            'finance.analytics',
+                            'finance.export',
+                            'finance.unlimited',
+                        ],
+                    ],
+                ],
+                'assign_role' => 'admin',
+            ],
         ];
 
         foreach ($apps as $spec) {
@@ -135,6 +190,8 @@ class DatabaseSeeder extends Seeder
                 [
                     'name' => $spec['name'],
                     'client_id' => $spec['client_id'],
+                    'category' => $spec['category'] ?? 'public_auth',
+                    'allow_google_login' => $spec['allow_google_login'] ?? true,
                     'redirect_uris' => $spec['redirect_uris'],
                     'post_logout_redirect_uris' => $spec['post_logout_redirect_uris'],
                     'allowed_origins' => $spec['allowed_origins'],

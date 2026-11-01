@@ -1,7 +1,7 @@
 # CHECKPOINT: IAM-SSO-CORE
 
 > Baca file ini PERTAMA di percakapan baru, lalu lanjutkan dari bagian "Langkah Berikutnya".
-> Terakhir diperbarui: 2026-10-26 (CP-008)
+> Terakhir diperbarui: 2026-10-29 (CP-011)
 
 ## Konteks Singkat
 - **Tujuan**: Core **Identity + SSO (OIDC)** reusable, pusat layanan lintas aplikasi (user, role, permission, app registry, API key, outbox webhook, MFA TOTP, password reset, audit). App lain (Motion Portfolio, Mochi Finance, ToonHub, dll.) menjadi klien. **Core dibangun penuh dulu, penyesuaian client app belakangan.**
@@ -58,7 +58,75 @@
    - **App-Scoped Logout (`POST /oauth/revoke`) & Monitoring Sesi per Aplikasi Klien (`CP-007`)**:
      - Logout dari aplikasi klien (`localhost:3001` maupun `mochi-finance-admin.test:8888`) kini memanggil `POST /oauth/revoke` di background yang hanya mencabut token milik `application_id` tersebut (`APP_LOGOUT`) tanpa mematikan sesi induk Super Admin di `iam-sso-core`.
      - Dashboard `iam-sso-core` (`/admin`) kini menampilkan tabel **"Sesi Aktif per Aplikasi Klien (App-Scoped Sessions)"** dengan tombol `Putus Sesi App` (`POST /admin/app-sessions/revoke`).
-   - **Pengujian Otomatis**: `iam-sso-core` **29/29 lulus (204 assertions)**, `mochi-finance-admin` **7/7 lulus (35 assertions)**.
-2. **Tahap 2 Berikutnya (`portfolio-admin` + `portofolio-motion`)**:
-   - Bangun aplikasi Laravel CMS & API Portofolio di `C:\laragon\www\portfolio-admin` (`http://portfolio-admin.test:8888`, DB `portfolio_admin_db`, `client_id: APP-0001`).
-   - Hubungkan Nuxt 3 `e:\Data Pribadi\web-porto\portofolio-motion` ke `http://portfolio-admin.test:8888/api/motion/portfolio` dengan API Key dari `iam-sso-core`.
+   - **Pemisahan Entitas Aplikasi Klien & Admin Backoffice (`CP-009`)**:
+     - Pemisahan resmi antara **Mochi Finance PWA** (`slug: mochi-finance`, `name: Mochi Finance (Client App)`, `client_id: app_mochi_finance`, redirect URIs port `3001`) dan **Mochi Finance Admin** (`slug: mochi-finance-admin`, `name: Mochi Finance Admin (Backoffice)`, `client_id: app_mochi_finance_admin`, redirect URIs port `8888`).
+     - Role & permission terpisah secara bersih di `iam-sso-core` (`DatabaseSeeder.php` & `ProviderController.php::ensureClientAccess`).
+     - File `.env` dan `config/iam.php` pada `mochi-finance-admin` telah diselaraskan ke `IAM_CLIENT_ID=app_mochi_finance_admin`.
+     - Tabel monitoring sesi aktif di dashboard IAM kini menampilkan nama dan client ID yang akurat sesuai aplikasi yang sedang aktif tanpa tertukar lagi.
+   - **Pengujian Otomatis**: `iam-sso-core` **29/29 lulus (208 assertions)**, `mochi-finance-admin` **7/7 lulus (35 assertions)**.
+2. **Tahap 2 Selesai (`CP-010` — Motion Portfolio CMS Backoffice `portfolio-admin` & Headless API Nuxt 3 Client)**:
+   - **Modern Laravel CMS Backoffice (`C:\laragon\www\portfolio-admin`)**:
+     - Berjalan di `http://portfolio-admin.test:8888`, database terisolasi `portfolio_admin_db`.
+     - Menyediakan antarmuka VyrnForge Dark Tech 5-Tab: Profil & Kontak, 5 Studi Kasus Proyek, 12 Matriks Keahlian, 14 Software Tools, dan Headless API Sync.
+   - **Headless REST API (`/api/motion/...`)**:
+     - `GET /api/motion/portfolio`: Menyajikan bundel lengkap profil, proyek, keahlian, dan tools dengan CORS allow-list untuk `http://localhost:3000`.
+     - `GET /api/motion/projects`: Menyajikan daftar studi kasus aktif.
+   - **Frontend Nuxt 3 Sync (`e:\Data Pribadi\web-porto\portofolio-motion`)**:
+     - `.env` dan `nuxt.config.ts` diarahkan ke `IAM_API_BASE=http://portfolio-admin.test:8888`.
+     - Sinkronisasi reaktif berjalan lancar via `usePortfolioData.ts` dengan fallback offline aman.
+   - **Pemisahan Registrasi Mandiri `portfolio-admin` di IAM Core (`CP-011`)**:
+     - `portfolio-admin` kini terdaftar resmi sebagai aplikasi terpisah (`slug: portfolio-admin`, `name: Motion Portfolio Admin (Backoffice)`, `client_id: app_portfolio_admin`, redirect URIs port `8888`).
+     - `motion-portfolio` difokuskan untuk Client Nuxt 3 port `3000` (`client_id: APP-0001`).
+     - Konfigurasi `.env` dan `config/iam.php` di `portfolio-admin` diselaraskan ke `IAM_CLIENT_ID=app_portfolio_admin`.
+     - `ProviderController::ensureClientAccess()` otomatis menetapkan role `admin` bagi akun owner.
+   - **Pengujian Otomatis**:
+     - `iam-sso-core`: **29/29 lulus (208 assertions)**.
+     - `mochi-finance-admin`: **7/7 lulus (35 assertions)**.
+     - `portfolio-admin`: **9/9 lulus (33 assertions)**.
+     - `portofolio-motion`: **Nuxt 3 production build 100% sukses**.
+3. **Langkah Berikutnya**:
+   - Uji verifikasi langsung integrasi Nuxt 3 (`http://localhost:3000`) dan Portfolio Admin (`http://portfolio-admin.test:8888`) di browser.
+   - Persiapkan migrasi klien berikutnya (`toonhub`) ke ekosistem IAM-SSO-CORE.
+
+## Catatan UX (2026-10-31)
+- **Tata Letak 2 Kolom Full-Width (`.admin-layout`)**:
+  - Batasan `max-width: 1240px` pada `.console-main` dihapus sehingga tampilan memanfaatkan monitor layar lebar secara optimal (full-width tanpa ruang kosong hitam di kanan).
+  - Menggunakan CSS Grid 2 kolom responsif: Kolom Utama (`.admin-main`, `minmax(0, 1fr)`) di kiri dan Kolom Samping (`.admin-aside`, `360px` sticky) di kanan. Pada layar `<= 1240px`, layout otomatis menyusut menjadi 1 kolom vertikal rapi.
+  - Diterapkan seragam ke seluruh 8 halaman admin:
+    1. `/admin` (Dashboard): Kolom samping memuat panduan `<x-help>`, status Signing Key RS256, dan pintasan cepat.
+    2. `/admin/apps` (Aplikasi): Kolom samping memuat panduan `<x-help>`, alamat Endpoint Discovery OIDC & JWKS (lengkap dengan tombol Salin ber-fallback HTTP), dan tips pendaftaran.
+    3. `/admin/apps/{id}` (Detail Aplikasi): Kolom samping memuat panduan, ringkasan status aplikasi, dan kartu rotasi client secret.
+    4. `/admin/users` (Pengguna & Organisasi): Kolom samping memuat panduan, manajemen Organisasi Tenant Pelanggan, dan tips akses global.
+    5. `/admin/users/{id}` (Detail Pengguna): Kolom samping memuat panduan, profil ringkas user, dan tombol darurat reset MFA TOTP.
+    6. `/admin/security` (Keamanan, MFA & Signing Key): Kolom samping memuat panduan awam, ringkasan status proteksi Super Admin, dan prinsip zero-trust.
+    7. `/admin/audit` (Audit Log Keamanan): Kolom samping memuat panduan, kamus kode aksi populer (`LOGIN`, `FAILED_LOGIN`, `MASTER_PASSWORD_LOGIN`, dll.), dan panduan tingkat severity.
+    8. `/admin/glossary` (Kamus Istilah): Kolom samping memuat panduan cara membaca kamus, navigasi cepat anchor link per kategori, dan tips pencarian `Ctrl + F`.
+- **Bahasa Awam & Perumpamaan**: Setiap blok `<x-help>` dan halaman `/admin/glossary` memuat ~40 istilah teknis dengan perumpamaan dunia nyata agar mudah dipahami oleh pemula/owner yang sedang belajar.
+- **Penyederhanaan Pendaftaran Aplikasi (`/admin/apps`) & Panduan .env (`/admin/apps/{id}`)**:
+  - **Quick Preset Selector**: Pilihan tipe aplikasi 1-klik:
+    1. `🌐 Frontend Web (SPA)`: Nuxt 3, Vue, React, Vite. Otomatis Public Client (PKCE S256). User cukup isi Nama dan Port/URL Lokal, Redirect URI (`/auth/callback`), Post-Logout (`/`), dan CORS Origin terisi otomatis.
+    2. `⚙️ Backend / Server`: Laravel, Express, PHP. Otomatis Confidential Client (dengan Client Secret).
+    3. `🛠️ Manual / Lanjutan`: Untuk konfigurasi kustom.
+  - **Auto-Slug & Live URL Calculation**: Mengetik nama aplikasi otomatis men-generate slug kebab-case. Mengubah URL/Port lokal otomatis memperbarui Redirect URI secara instan.
+  - **Kotak "Cara Menyambungkan ke Kodingan Aplikasi (.env)"**: Di halaman detail konfigurasi (`/admin/apps/{id}`), terdapat kotak snippet `.env` siap salin dengan tombol "Salin Baris .env" 1-klik (`IAM_BASE_URL` dan `IAM_CLIENT_ID`), lengkap dengan panduan 3 langkah mudah.
+  - **Pemisahan Pengaturan Dasar vs Lanjutan**: Form konfigurasi dibagi menjadi *🟢 Pengaturan Utama (Wajib)* dan *⚙️ Pengaturan Lanjutan (Opsional)* yang collapsible agar tidak membingungkan pemula.
+- **Social Login Google OAuth Terpusat (`/auth/google`, `CP-012`)**:
+  - Pemasangan `laravel/socialite` v5.31.
+  - Migrasi `2026_10_31_000005_add_google_auth_to_users_table`: kolom `google_id` dan `avatar_url` pada tabel `users`.
+  - Endpoint `GET /auth/google` & `GET/POST /auth/google/callback` (`GoogleAuthController`):
+    - Auto-detect alur aplikasi klien via `?client_id=...` atau OIDC intended redirect.
+    - Auto-link akun pengguna lama jika email cocok, atau auto-register pengguna baru.
+    - Dilengkapi **Sandbox / Mock Mode** lokal instan (`resources/views/auth/google-mock.blade.php`) sehingga dapat langsung diuji di lingkungan lokal tanpa harus setup GCP credentials terlebih dahulu.
+  - Tombol elegan "Masuk dengan Akun Google" di form login SSO (`/login`).
+  - Kartu panduan Google OAuth di menu Keamanan & MFA (`/admin/security`) lengkap dengan Authorized Redirect URI siap salin.
+  - Pengujian otomatis: `tests/Feature/GoogleAuthTest.php` **36/36 tests lulus (252 assertions)**.
+- **Pemisahan 3 Kategori Aplikasi & Tata Kelola Login (`CP-013`)**:
+  - Migrasi `2026_10_31_000006_add_category_to_applications_table`: kolom `category` (`public_no_auth`, `public_auth`, `internal_admin`) dan `allow_google_login` pada tabel `applications`.
+  - **1. 🌐 Publik Tanpa Login (Showcase / Portofolio / Landing Page)**:
+    - Contoh: `motion-portfolio` (Nuxt 3 port 3000). Bebas dibuka publik tanpa sesi login. Terdaftar di IAM untuk izin CORS allow-list dan API key headless REST API. Alur login OIDC dan Google otomatis ditolak/dikecualikan.
+  - **2. 👥 Publik dengan Login (Interactive SaaS / Client App)**:
+    - Contoh: `mochi-finance` (PWA port 3001), `toonhub`. Pengguna menyimpan data personal, mendukung **Social Login Google (1-Klik)** dan pendaftaran mandiri.
+  - **3. 🔒 Admin Backoffice (Konsol Pengelola Internal)**:
+    - Contoh: `mochi-finance-admin` (port 8888), `portfolio-admin` (port 8888). Khusus Super Admin / Owner via kredensial SSO resmi / Master Password. Login Google dari pengguna umum otomatis ditolak (kecuali akun Super Admin).
+  - Tampilan konsol admin (`/admin/apps` & `/admin/apps/{id}`) menyajikan 3 kartu preset instan, badge kategori visual, serta portal pengguna `/` untuk akun non-super-admin.
+  - Halaman kustom error 403 & 419 bertema VyrnForge Dark Tech dengan tombol aksi bersahabat.

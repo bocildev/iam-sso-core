@@ -7,6 +7,7 @@ $navItems = [
     ['href' => '/admin/apps', 'label' => 'Aplikasi & API Key', 'active' => str_starts_with($path, 'admin/apps'), 'icon' => '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>'],
     ['href' => '/admin/users', 'label' => 'User & Organisasi', 'active' => str_starts_with($path, 'admin/users'), 'icon' => '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'],
     ['href' => '/admin/security', 'label' => 'Keamanan & MFA', 'active' => str_starts_with($path, 'admin/security'), 'icon' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'],
+    ['href' => '/admin/glossary', 'label' => 'Kamus Istilah', 'active' => str_starts_with($path, 'admin/glossary'), 'icon' => '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'],
     ['href' => '/admin/audit', 'label' => 'Audit Log', 'active' => str_starts_with($path, 'admin/audit'), 'icon' => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'],
 ];
 $me = auth()->user();

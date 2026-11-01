@@ -47,12 +47,31 @@
     var copyBtn = e.target.closest('[data-copy]');
     if (copyBtn) {
       var text = copyBtn.getAttribute('data-copy');
-      if (navigator.clipboard && text) {
-        navigator.clipboard.writeText(text).then(function () {
-          var prev = copyBtn.textContent;
-          copyBtn.textContent = 'Tersalin';
-          setTimeout(function () { copyBtn.textContent = prev; }, 1600);
-        });
+      var prev = copyBtn.dataset.label || copyBtn.textContent;
+      copyBtn.dataset.label = prev;
+      function flash(msg) {
+        copyBtn.textContent = msg;
+        setTimeout(function () { copyBtn.textContent = prev; }, 1600);
+      }
+      function legacyCopy() {
+        // Fallback untuk HTTP non-secure (mis. http://iam-sso-core.test:8888) di mana navigator.clipboard tidak tersedia
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) {}
+        document.body.removeChild(ta);
+        flash(ok ? 'Tersalin' : 'Gagal salin');
+      }
+      if (text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(function () { flash('Tersalin'); }, legacyCopy);
+        } else {
+          legacyCopy();
+        }
       }
       return;
     }
@@ -69,6 +88,15 @@
     }
   });
 })();
+</script>
+<script>
+document.querySelectorAll('details.help[data-help-key]').forEach(function (d) {
+  var k = 'iam_help_' + d.getAttribute('data-help-key');
+  try { if (localStorage.getItem(k) === 'closed') d.removeAttribute('open'); } catch (e) {}
+  d.addEventListener('toggle', function () {
+    try { localStorage.setItem(k, d.open ? 'open' : 'closed'); } catch (e) {}
+  });
+});
 </script>
 </body>
 </html>

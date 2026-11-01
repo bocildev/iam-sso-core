@@ -103,18 +103,34 @@ class AdminController extends Controller
 
     public function appStore(Request $r)
     {
+        $category = $r->input('category', 'public_auth');
         $d = $r->validate([
             'name' => 'required|string|max:100',
             'slug' => 'required|alpha_dash|max:50|unique:applications,slug',
-            'redirect_uris' => 'required|string',
+            'category' => 'nullable|in:public_no_auth,public_auth,internal_admin',
+            'redirect_uris' => $category === 'public_no_auth' ? 'nullable|string' : 'required|string',
+            'post_logout_redirect_uris' => 'nullable|string',
+            'allowed_origins' => 'nullable|string',
+            'allow_google_login' => 'nullable|boolean',
             'confidential' => 'nullable|boolean',
         ]);
+        $category = $d['category'] ?? 'public_auth';
+
+        $redirects = $this->lines($d['redirect_uris'] ?? '');
+        if (empty($redirects) && $category === 'public_no_auth') {
+            $redirects = ['none'];
+        }
+
         $secret = null;
         $webhookSecret = 'whsec_'.bin2hex(random_bytes(16));
         $app = new Application([
             'name' => $d['name'],
             'slug' => $d['slug'],
-            'redirect_uris' => $this->lines($d['redirect_uris']),
+            'category' => $category,
+            'allow_google_login' => $category === 'public_auth' ? $r->boolean('allow_google_login', true) : false,
+            'redirect_uris' => $redirects,
+            'post_logout_redirect_uris' => $this->lines($d['post_logout_redirect_uris'] ?? ''),
+            'allowed_origins' => $this->lines($d['allowed_origins'] ?? ''),
             'webhook_secret_encrypted' => Crypt::encryptString($webhookSecret),
         ]);
         if ($r->boolean('confidential')) {
@@ -140,19 +156,31 @@ class AdminController extends Controller
 
     public function appUpdate(Request $r, Application $app)
     {
+        $category = $r->input('category', $app->category ?? 'public_auth');
         $d = $r->validate([
             'name' => 'required|string|max:100',
-            'redirect_uris' => 'required|string',
+            'category' => 'nullable|in:public_no_auth,public_auth,internal_admin',
+            'redirect_uris' => $category === 'public_no_auth' ? 'nullable|string' : 'required|string',
             'post_logout_redirect_uris' => 'nullable|string',
             'backchannel_logout_uri' => 'nullable|url',
             'webhook_url' => 'nullable|url',
             'allowed_origins' => 'nullable|string',
+            'allow_google_login' => 'nullable|boolean',
             'status' => 'required|in:active,suspended',
             'auth_mode' => 'required|in:legacy,oidc,both',
         ]);
+        $category = $d['category'] ?? ($app->category ?? 'public_auth');
+
+        $redirects = $this->lines($d['redirect_uris'] ?? '');
+        if (empty($redirects) && $category === 'public_no_auth') {
+            $redirects = ['none'];
+        }
+
         $app->update([
             'name' => $d['name'],
-            'redirect_uris' => $this->lines($d['redirect_uris']),
+            'category' => $category,
+            'allow_google_login' => $category === 'public_auth' ? $r->boolean('allow_google_login', true) : false,
+            'redirect_uris' => $redirects,
             'post_logout_redirect_uris' => $this->lines($d['post_logout_redirect_uris'] ?? ''),
             'backchannel_logout_uri' => $d['backchannel_logout_uri'] ?? null,
             'webhook_url' => $d['webhook_url'] ?? null,

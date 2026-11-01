@@ -10,7 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password', 'status', 'is_super_admin', 'totp_secret_encrypted', 'totp_confirmed_at', 'recovery_code_hashes'])]
+#[Fillable(['name', 'email', 'password', 'status', 'is_super_admin', 'google_id', 'avatar_url', 'totp_secret_encrypted', 'totp_confirmed_at', 'recovery_code_hashes'])]
 #[Hidden(['password', 'remember_token', 'totp_secret_encrypted', 'recovery_code_hashes'])]
 class User extends Authenticatable
 {

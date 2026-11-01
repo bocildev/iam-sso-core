@@ -1,13 +1,25 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\Oidc\ProviderController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\RegisterController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect('/admin'));
+Route::get('/', function () {
+    if (! auth()->check()) {
+        return redirect('/login');
+    }
+    if (auth()->user()->is_super_admin) {
+        return redirect('/admin');
+    }
+
+    return view('portal.home', [
+        'user' => auth()->user(),
+    ]);
+});
 
 // Alur browser OIDC (butuh session)
 Route::get('/oauth/authorize', [ProviderController::class, 'authorize']);
@@ -15,6 +27,8 @@ Route::match(['get', 'post'], '/oauth/logout', [ProviderController::class, 'endS
 
 Route::get('/login', [LoginController::class, 'show'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:20,1');
+Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+Route::match(['get', 'post'], '/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 Route::get('/register', [RegisterController::class, 'show'])->name('register');
 Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:10,1');
 Route::get('/login/mfa', [LoginController::class, 'showMfa'])->name('login.mfa');
@@ -51,5 +65,6 @@ Route::middleware(['auth', 'iam.admin'])->prefix('admin')->group(function () {
     Route::post('/security/mfa/confirm', [AdminController::class, 'mfaConfirm']);
     Route::post('/security/mfa/disable', [AdminController::class, 'mfaDisable']);
     Route::get('/audit', [AdminController::class, 'audit']);
+    Route::view('/glossary', 'admin.glossary');
     Route::post('/keys/rotate', [AdminController::class, 'rotateKey']);
 });

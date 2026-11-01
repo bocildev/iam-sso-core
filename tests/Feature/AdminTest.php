@@ -21,15 +21,24 @@ class AdminTest extends TestCase
     {
         $admin = User::factory()->create(['is_super_admin' => true]);
         $this->actingAs($admin);
-        foreach (['/admin', '/admin/apps', '/admin/users', '/admin/audit'] as $u) {
+        foreach (['/admin', '/admin/apps', '/admin/users', '/admin/audit', '/admin/security', '/admin/glossary'] as $u) {
             $this->get($u)->assertOk();
         }
+        $this->get('/admin/glossary')->assertSee('Kamus Istilah')->assertSee('Redirect URI');
+        $this->get('/admin')->assertSee('Apa ini?');
         $res = $this->post('/admin/apps', [
-            'name' => 'Mochi', 'slug' => 'mochi', 'redirect_uris' => "http://localhost:9000/cb", 'confidential' => 1,
+            'name' => 'Mochi',
+            'slug' => 'mochi',
+            'redirect_uris' => "http://localhost:9000/cb",
+            'post_logout_redirect_uris' => "http://localhost:9000/",
+            'allowed_origins' => "http://localhost:9000",
+            'confidential' => 1,
         ]);
         $app = Application::where('slug', 'mochi')->firstOrFail();
+        $this->assertEquals(['http://localhost:9000'], $app->allowed_origins);
+        $this->assertEquals(['http://localhost:9000/'], $app->post_logout_redirect_uris);
         $res->assertRedirect("/admin/apps/{$app->id}")->assertSessionHas('secret');
-        $this->get("/admin/apps/{$app->id}")->assertOk();
+        $this->get("/admin/apps/{$app->id}")->assertOk()->assertSee('Cara Menyambungkan ke Kodingan Aplikasi Anda');
         $this->assertDatabaseHas('audit_logs', ['action' => 'APP_CREATED']);
     }
 

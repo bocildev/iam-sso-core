@@ -15,89 +15,132 @@
   <a href="/admin/users" class="btn btn-sm btn-ghost">&larr; Semua User</a>
 </div>
 
-<form method="post" action="/admin/users/{{ $u->id }}">
-  @csrf
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Profil &amp; Status Akun</h2>
-      </div>
-      <label for="u-name">Nama Lengkap</label>
-      <input id="u-name" name="name" value="{{ $u->name }}" required>
-
-      <label for="u-status">Status Akun</label>
-      <select id="u-status" name="status">
-        @foreach(['active','suspended'] as $s)
-          <option value="{{ $s }}" @selected($u->status===$s)>{{ $s }}</option>
-        @endforeach
-      </select>
-
-      <label class="checkbox-row">
-        <input type="checkbox" name="is_super_admin" value="1" @checked($u->is_super_admin)>
-        <span><strong>Super Admin IAM</strong> (akses penuh konsol administrasi)</span>
-      </label>
-
-      <label for="u-new-pass">Password Baru (opsional, minimal 8 karakter)</label>
-      <div style="position:relative;margin-bottom:14px">
-        <input id="u-new-pass" type="password" name="new_password" autocomplete="new-password" placeholder="Kosongkan jika tidak ingin mengubah password" style="margin-bottom:0;padding-right:92px">
-        <button type="button" class="btn-ghost btn-sm" data-toggle-password="u-new-pass" aria-pressed="false" aria-label="Tampilkan password" style="position:absolute;right:6px;top:5px;min-height:30px;padding:3px 9px">
-          Tampilkan
-        </button>
-      </div>
-
-      <button type="submit">Simpan Perubahan User</button>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Matriks Akses Aplikasi &amp; Role</h2>
-      </div>
-      <p class="muted" style="margin-top:0;font-size:13px">
-        Pilih aplikasi yang diizinkan beserta organisasi (<code>tenant_id</code>) dan role spesifik aplikasi.
-      </p>
-      @foreach($apps as $a)
-        <div style="background:var(--surface-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px">
-          <label class="checkbox-row" style="margin-bottom:8px">
-            <input type="checkbox" name="apps[]" value="{{ $a->id }}" @checked(in_array($a->id, $appIds))>
-            <strong>{{ $a->name }}</strong>
-            <code>{{ $a->client_id }}</code>
-          </label>
-
-          <label for="org-{{ $a->id }}" style="font-size:12px">Organisasi (Tenant)</label>
-          <select id="org-{{ $a->id }}" name="org[{{ $a->id }}]" style="margin-bottom:10px">
-            <option value="">— Tanpa Organisasi —</option>
-            @foreach($orgs as $o)
-              <option value="{{ $o->id }}" @selected(($orgByApp[$a->id] ?? null) == $o->id)>{{ $o->name }} ({{ $o->slug }})</option>
-            @endforeach
-          </select>
-
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            @foreach($a->roles as $r)
-              <label class="checkbox-row" style="margin-bottom:4px">
-                <input type="checkbox" name="roles[]" value="{{ $r->id }}" @checked(in_array($r->id, $roleIds))>
-                <span>{{ $r->name }} (<code>{{ $r->key }}</code>)</span>
-              </label>
-            @endforeach
+<div class="admin-layout">
+  <div class="admin-main">
+    <form method="post" action="/admin/users/{{ $u->id }}">
+      @csrf
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Profil &amp; Status Akun</h2>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label for="u-name">Nama Lengkap</label>
+            <input id="u-name" name="name" value="{{ $u->name }}" required>
+          </div>
+          <div>
+            <label for="u-status">Status Akun</label>
+            <select id="u-status" name="status">
+              @foreach(['active','suspended'] as $s)
+                <option value="{{ $s }}" @selected($u->status===$s)>{{ $s }}</option>
+              @endforeach
+            </select>
           </div>
         </div>
-      @endforeach
-    </div>
-  </div>
-</form>
 
-@if($u->hasMfaEnabled())
-<div class="card">
-  <div class="card-header">
-    <h3 class="card-title">Darurat: Reset MFA TOTP User</h3>
-    <x-badge variant="warning">Tindakan Sensitif</x-badge>
+        <label class="checkbox-row">
+          <input type="checkbox" name="is_super_admin" value="1" @checked($u->is_super_admin)>
+          <span><strong>Super Admin IAM</strong> (akses penuh konsol administrasi)</span>
+        </label>
+
+        <label for="u-new-pass">Password Baru (opsional, minimal 8 karakter)</label>
+        <div style="position:relative;margin-bottom:14px">
+          <input id="u-new-pass" type="password" name="new_password" autocomplete="new-password" placeholder="Kosongkan jika tidak ingin mengubah password" style="margin-bottom:0;padding-right:92px">
+          <button type="button" class="btn-ghost btn-sm" data-toggle-password="u-new-pass" aria-pressed="false" aria-label="Tampilkan password" style="position:absolute;right:6px;top:5px;min-height:30px;padding:3px 9px">
+            Tampilkan
+          </button>
+        </div>
+
+        <button type="submit">Simpan Perubahan User</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Matriks Akses Aplikasi &amp; Role</h2>
+        </div>
+        <p class="muted" style="margin-top:0;font-size:13px">
+          Pilih aplikasi yang diizinkan beserta organisasi (<code>tenant_id</code>) dan role spesifik aplikasi.
+        </p>
+        @foreach($apps as $a)
+          <div style="background:var(--surface-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:12px">
+            <label class="checkbox-row" style="margin-bottom:8px">
+              <input type="checkbox" name="apps[]" value="{{ $a->id }}" @checked(in_array($a->id, $appIds))>
+              <strong>{{ $a->name }}</strong>
+              <code>{{ $a->client_id }}</code>
+            </label>
+
+            <label for="org-{{ $a->id }}" style="font-size:12px">Organisasi (Tenant)</label>
+            <select id="org-{{ $a->id }}" name="org[{{ $a->id }}]" style="margin-bottom:10px">
+              <option value="">— Tanpa Organisasi —</option>
+              @foreach($orgs as $o)
+                <option value="{{ $o->id }}" @selected(($orgByApp[$a->id] ?? null) == $o->id)>{{ $o->name }} ({{ $o->slug }})</option>
+              @endforeach
+            </select>
+
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              @foreach($a->roles as $r)
+                <label class="checkbox-row" style="margin-bottom:4px">
+                  <input type="checkbox" name="roles[]" value="{{ $r->id }}" @checked(in_array($r->id, $roleIds))>
+                  <span>{{ $r->name }} (<code>{{ $r->key }}</code>)</span>
+                </label>
+              @endforeach
+            </div>
+          </div>
+        @endforeach
+        <button type="submit">Simpan Perubahan User</button>
+      </div>
+    </form>
   </div>
-  <p class="muted" style="margin-top:0;font-size:13px">
-    Gunakan tindakan ini hanya apabila user kehilangan perangkat authenticator sekaligus recovery code. Tindakan ini dicatat di Audit Log.
-  </p>
-  <form method="post" action="/admin/users/{{ $u->id }}/reset-mfa">
-    @csrf
-    <button type="submit" class="btn btn-danger btn-sm">Reset MFA TOTP User Ini</button>
-  </form>
+
+  <aside class="admin-aside">
+    <x-help key="user" title="Apa ini? Mengatur satu user">
+      <ul>
+        <li><strong>Status suspended</strong>: akun diblokir dan semua sesi login langsung ditutup.</li>
+        <li><strong>Matriks akses</strong>: centang aplikasi yang boleh dimasuki user, pilih organisasinya, lalu centang role yang diberikan di aplikasi itu.</li>
+        <li><strong>Password baru</strong>: kosongkan jika tidak ingin mengubah. Jika diisi, user harus login ulang di semua aplikasi.</li>
+        <li><strong>Reset MFA</strong>: hanya jika user kehilangan ponsel dan recovery code.</li>
+      </ul>
+    </x-help>
+
+    <div class="card">
+      <div class="card-header" style="margin-bottom:8px">
+        <h3 class="card-title" style="font-size:14.5px">Ringkasan Pengguna</h3>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+        <div>
+          <span class="muted" style="font-size:11.5px;display:block">Subjek OIDC (sub)</span>
+          <code style="font-size:11.5px">{{ $u->sub }}</code>
+        </div>
+        <div>
+          <span class="muted" style="font-size:11.5px;display:block">Keamanan Dua Langkah</span>
+          @if($u->hasMfaEnabled())
+            <x-badge variant="success">MFA TOTP Aktif</x-badge>
+          @else
+            <x-badge variant="neutral" :dot="false">MFA Nonaktif</x-badge>
+          @endif
+        </div>
+        <div>
+          <span class="muted" style="font-size:11.5px;display:block">Akses Aplikasi Terhubung</span>
+          <span style="font-weight:600">{{ count($appIds) }} dari {{ count($apps) }} aplikasi</span>
+        </div>
+      </div>
+    </div>
+
+    @if($u->hasMfaEnabled())
+      <div class="card">
+        <div class="card-header" style="margin-bottom:8px">
+          <h3 class="card-title" style="font-size:14.5px">Darurat: Reset MFA TOTP</h3>
+          <x-badge variant="warning">Sensitif</x-badge>
+        </div>
+        <p class="muted" style="margin-top:0;font-size:12px">
+          Gunakan tindakan ini hanya apabila user kehilangan perangkat authenticator sekaligus recovery code. Tindakan ini dicatat di Audit Log.
+        </p>
+        <form method="post" action="/admin/users/{{ $u->id }}/reset-mfa" style="margin:0">
+          @csrf
+          <button type="submit" class="btn btn-danger btn-sm" style="width:100%;justify-content:center">Reset MFA TOTP User Ini</button>
+        </form>
+      </div>
+    @endif
+  </aside>
 </div>
-@endif
 @endsection

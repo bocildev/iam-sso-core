@@ -8,3 +8,5 @@ Baca `docs/CHECKPOINT.md` terlebih dahulu di setiap sesi baru, lalu lanjutkan da
 4. Jangan riset di luar proyek aktif tanpa izin. Jangan menulis secret ke repo.
 5. Setiap fitur baru wajib punya test; jalankan `php artisan test` sebelum menyatakan selesai.
 6. Perbarui `docs/CHECKPOINT.md` dan memori Obsidian di akhir setiap tahap.
+
+7. Jelaskan setiap istilah teknis dengan bahasa awam + perumpamaan (User masih belajar): di dalam UI (blok <x-help>, /admin/glossary) dan di jawaban. Tambahkan istilah baru ke Kamus Istilah.
